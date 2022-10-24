@@ -11,8 +11,8 @@ from easypush.utils.log import Logger
 from easypush.utils.settings import config
 from easypush.utils.decorators import wrapper_response
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
-from fosun_circle.core.request.http_util import HttpUtil
-from fosun_circle.core.request.multipart import MultiPartForm
+from easypush.core.request.http_util import HttpUtil
+from easypush.core.request.multipart import MultiPartForm
 
 
 class PushApiBase:

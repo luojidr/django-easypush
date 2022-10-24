@@ -336,6 +336,7 @@ pip-selfcheck.json
 
 ### Project template
 
+db.sqlite3
 .pypirc
 .pytest_cache/
 .idea/

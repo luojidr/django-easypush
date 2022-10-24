@@ -4,9 +4,9 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 from easypush.utils.util import DEFAULT_DATETIME
 from easypush.utils.constants import AppPlatformEnum, QyWXMediaEnum
-from fosun_circle.core.db.base import BaseAbstractModel
-from fosun_circle.libs.utils.crypto import AESHelper
-from fosun_circle.libs.path_builder import PathBuilder
+from easypush.core.db.base import BaseAbstractModel
+from easypush.core.crypto import AESHelper
+from easypush.core.path_builder import PathBuilder
 
 default_storage = FileSystemStorage()
 PLATFORM_CHOICES = [(p_enum.type, p_enum.desc) for p_enum in AppPlatformEnum.iterator()]

@@ -1,5 +1,3 @@
-
-
 class EasyPushError(Exception):
     """Base class for all easypush errors."""
 

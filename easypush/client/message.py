@@ -38,14 +38,11 @@ class AppMessage(MessageBase):
         pass
 
     def __getattr__(self, name):
-        from ..utils.decorators import wrapper_response
-
         func = getattr(self._client, name, None)
 
         if not callable(func):
             raise FuncInvokeError("`%s` method not invoked." % name)
 
-        @wrapper_response
         def call(*args, **kwargs):
             return func(*args, **kwargs)
 

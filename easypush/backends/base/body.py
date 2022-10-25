@@ -65,7 +65,11 @@ class ParserBodyBase:
         body_method = getattr(self, body_method_name, None)
 
         if body_method is None:
-            self.MESSAGE_MEDIA_ENUM.get_media_enum(self._msg_type)
+            try:
+                self.MESSAGE_MEDIA_ENUM.get_media_enum(self._msg_type)
+            except AttributeError:
+                msg = "[%s] `MessageBodyParser` class haven't MESSAGE_MEDIA_ENUM attribute"
+                raise AttributeError(msg % self.CLIENT_NAME)
             body_method = getattr(self, "get_media_body", None)
 
         if body_method is None:

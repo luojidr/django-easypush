@@ -15,7 +15,7 @@ PLATFORM_CHOICES = [(p_enum.type, p_enum.desc) for p_enum in AppPlatformEnum.ite
 class AppTokenPlatformModel(BaseAbstractModel):
     """ 应用信息(钉钉、企业微信、飞书等) """
 
-    from django.core.management.utils import get_random_secret_key
+    # from django.core.management.utils import get_random_secret_key
     TOKEN_KEY = "jvum7is)@ftae=iv"      # 固定值: 16位
 
     corp_id = models.CharField(verbose_name="企业corpId", max_length=100, db_index=True, default="")

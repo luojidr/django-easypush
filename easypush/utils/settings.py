@@ -5,8 +5,8 @@ DEFAULTS = {
     "log_path": "",
 
     "default": {
-        "BACKEND": "easypush.backends.ding_talk.DingTalkClient",
         # dingtalk
+        "BACKEND": "easypush.backends.ding_talk.DingTalkClient",
         "CORP_ID": None,
         "AGENT_ID": None,
         "APP_KEY": None,

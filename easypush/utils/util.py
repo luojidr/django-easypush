@@ -1,4 +1,6 @@
 import six
+import json
+import datetime
 
 DEFAULT_DATETIME = "1979-01-01 00:00:00"
 
@@ -31,3 +33,14 @@ def to_binary(value, encoding='utf-8'):
     if isinstance(value, six.text_type):
         return value.encode(encoding)
     return to_text(value).encode(encoding)
+
+
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return o.strftime("%Y-%m-%d %H:%M:%S")
+
+        if isinstance(o, datetime.date):
+            return o.strftime("%Y-%m-%d")
+
+        return o

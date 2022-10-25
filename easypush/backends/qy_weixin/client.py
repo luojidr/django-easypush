@@ -7,7 +7,7 @@ from .parser import QyWXMessageBodyParser
 from easypush.backends.base.base import ClientMixin
 from easypush.backends.base.body import MsgBodyBase
 from easypush.utils.constants import QyWXMediaEnum
-from easypush.utils.decorators import wrapper_response
+from easypush.utils.decorators import std_response
 from easypush.utils.constants import QyWXMessageTypeEnum
 
 
@@ -22,7 +22,7 @@ class QyWeixinBase(ClientMixin):
         self._token_dict = {}
         self._message = QyMessage(client=self)
 
-    @wrapper_response
+    @std_response
     def get_access_token(self):
         """ 获取应用 access token
         Data:
@@ -62,12 +62,7 @@ class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
     def upload_media(self, media_type, filename=None, media_file=None):
         assert media_type in QyWXMediaEnum.media_list(), "媒体文件类型(仅限: image, voice, file)错误!"
 
-        if not media_file and not filename:
-            raise ValueError("未选择媒体文件!")
-
-        if filename and not os.path.exists(filename):
-            raise ValueError("媒体文件不存在")
-
+        self._check_media_exist(filename, media_file)
         return self._message.media_upload(media_type, filename, media_file)
 
     def async_send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), to_all_user=False):

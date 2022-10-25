@@ -7,7 +7,11 @@ from dingtalk.model import message
 class EnumBase(enum.Enum):
     @classmethod
     def iterator(cls):
-        return iter(cls._member_map_.values())
+        members = [
+            one for one in cls._member_map_.values()
+            if one.name.isupper() and not one.name.startswith("_")
+        ]
+        return iter(members)
 
 
 class AppPlatformEnum(EnumBase):
@@ -40,11 +44,13 @@ class _MediaEnumBase(EnumBase):
         cls = self.value[2]
 
         if isinstance(cls, str):
-            if self._BODY_MODULE is None:
+            cls_name = cls
+            body_module = getattr(self, "_BODY_MODULE", None)
+
+            if body_module is None or body_module.value is None:
                 raise ValueError("_MediaEnumBase._BODY_MODULE is empty.")
 
-            cls_name = cls
-            module = importlib.import_module(self._BODY_MODULE)
+            module = importlib.import_module(body_module.value)
             cls = getattr(module, cls_name)
 
         return cls

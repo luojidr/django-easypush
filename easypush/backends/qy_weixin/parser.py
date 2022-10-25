@@ -8,7 +8,7 @@ from easypush.backends.base.body import ParserBodyBase
 class QyWXMessageBodyParser(ParserBodyBase):
     MESSAGE_MEDIA_ENUM = QyWXMediaEnum
 
-    def validate_field_length(self, fields, body_name=None):
+    def _validate_field_length(self, fields, body_name=None):
         """校验消息体字段长度 """
         for field in fields:
             name = field[0]
@@ -22,7 +22,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
         self.check_msg_type(QyWXBody.TextBody)
 
         fields = [("content", 2048, to_binary(content))]
-        self.validate_field_length(fields=fields, body_name="TextBody")
+        self._validate_field_length(fields=fields, body_name="TextBody")
 
         return QyWXBody.TextBody(content=content, **kwargs)
 
@@ -40,7 +40,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ("title", 128, to_binary(title)),
             ("description", 512, to_binary(description)),
         ]
-        self.validate_field_length(fields=fields, body_name="VideoBody")
+        self._validate_field_length(fields=fields, body_name="VideoBody")
 
         return QyWXBody.VideoBody(media_id, title, description, **kwargs)
 
@@ -48,7 +48,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
         self.check_msg_type(QyWXBody.MarkdownBody)
 
         fields = [("content", 2048, to_binary(content))]
-        self.validate_field_length(fields=fields, body_name="MarkdownBody")
+        self._validate_field_length(fields=fields, body_name="MarkdownBody")
 
         return QyWXBody.MarkdownBody(content=content, **kwargs)
 
@@ -61,7 +61,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ("url", 2048, to_binary(url)),
             ("btntxt", 4, btntxt),
         ]
-        self.validate_field_length(fields=fields, body_name="TextCardBody")
+        self._validate_field_length(fields=fields, body_name="TextCardBody")
 
         return QyWXBody.TextCardBody(title, description, url, btntxt, **kwargs)
 
@@ -74,7 +74,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ("url", 2048, to_binary(url)),
             ("pagepath", 2048, to_binary(pagepath)),
         ]
-        self.validate_field_length(fields=fields, body_name="NewsBody")
+        self._validate_field_length(fields=fields, body_name="NewsBody")
 
         return QyWXBody.NewsBody(title, description, url, picurl, appid, pagepath, **kwargs)
 
@@ -88,7 +88,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ("author", 64, to_binary(author)),
             ("digest", 512, to_binary(digest)),
         ]
-        self.validate_field_length(fields=fields, body_name="MpNewsBody")
+        self._validate_field_length(fields=fields, body_name="MpNewsBody")
 
         return QyWXBody.MpNewsBody(title, thumb_media_id, content, author, content_source_url, digest, **kwargs)
 
@@ -98,7 +98,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
         self.check_msg_type(QyWXBody.MiniProgramBody)
 
         fields = [("title", 4, 12, title), ("description", 4, 12, description),]
-        self.validate_field_length(fields=fields, body_name="MiniProgramBody")
+        self._validate_field_length(fields=fields, body_name="MiniProgramBody")
 
         if len(content_item) > 10:
             raise exceptions.ExceedContentMaxSizeError("QyWXBody.MiniProgramBody content_item exceed 10 size.")

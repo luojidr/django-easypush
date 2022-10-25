@@ -9,7 +9,7 @@ from django.core.files.base import File
 
 from easypush.utils.log import Logger
 from easypush.utils.settings import config
-from easypush.utils.decorators import wrapper_response
+from easypush.utils.decorators import std_response
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.core.request.http_util import HttpUtil
 from easypush.core.request.multipart import MultiPartForm
@@ -69,7 +69,7 @@ class PushApiBase:
 
         kwargs["headers"] = headers
 
-        wrapper_callback = wrapper_response(req_func)
+        wrapper_callback = std_response(req_func)
         return wrapper_callback(url, **kwargs)
 
     def _get(self, url, params=None, **kwargs):
@@ -89,7 +89,7 @@ class PushApiBase:
             if self._log_path:
                 self._logger = self.log_cls(filename=self._log_path)
             else:
-                self._logger = logging.getLogger("easypush_tmp.log")
+                self._logger = logging.getLogger("easypush")
 
         return self._logger
 
@@ -131,6 +131,13 @@ class ClientMixin(PushApiBase):
         file_obj.seek(pos)
         return size
 
+    def _check_media_exist(self, filename=None, media_file=None):
+        if not media_file and not filename:
+            raise ValueError("未选择媒体文件!")
+
+        if filename and not os.path.exists(filename):
+            raise ValueError("媒体文件不存在")
+
     def get_access_token(self):
         raise NotImplementedError
 
@@ -147,3 +154,5 @@ class ClientMixin(PushApiBase):
     @property
     def msgtype(self):
         return self._msg_type
+
+

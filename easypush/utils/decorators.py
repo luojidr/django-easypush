@@ -3,7 +3,7 @@ import functools
 import traceback
 
 
-def wrapper_response(fun):
+def std_response(fun):
     @functools.wraps(fun)
     def wrap(*args, **kwargs):
         code, msg, result = 200, "ok", None
@@ -12,9 +12,13 @@ def wrapper_response(fun):
 
         try:
             data = fun(*args, **kwargs)
-            result = data["data"]
+
+            if "data" in data:
+                result = data["data"]
+            else:
+                result = data
         except Exception as e:
-            code, msg = 5003, str(msg)
+            code, msg = 5000, str(msg)
             format_exc = traceback.format_exc()
             log_msg = "Client[%s] invoke func[%s] err: %s" % (self.__class__.__name__, fun.__name__, e)
 

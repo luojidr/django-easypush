@@ -8,6 +8,7 @@ from easypush.utils.constants import DingTalkMessageTypeEnum, DingTalkMediaEnum
 
 
 class DingMessageBodyParser(ParserBodyBase):
+    MESSAGE_MEDIA_ENUM = DingTalkMediaEnum
     MESSAGE_TYPE_ENUM = DingTalkMessageTypeEnum
 
     def get_text_body(self, content, **kwargs):
@@ -88,24 +89,22 @@ class DingMessageBodyParser(ParserBodyBase):
         @param author: 	自定义的作者名字
         @param media_id: 消息体中的图片 media_id
         @param file_count: 自定义的附件数目。此数字仅供显示，钉钉不作验证
-        @param forms: 消息体的表单
+        @param forms: 消息体的表单, eg:[{"key": "姓名:", "value": "张三"},{"key": "年龄:", "value": "20"}]
         @param rich_num: 单行富文本信息的数目
         @param rich_unit: 单行富文本信息的单位
         """
         self.check_msg_type(message.OaBody)
 
-        forms = forms or {}
+        forms = {item["key"]: item["value"] for item in forms or []}
         oa_body_content = message.OaBodyContent(
             title=title, content=content, author=author,
             image=media_id, file_count=file_count, forms=forms,
-            rich_num=rich_num, rish_unit=rich_unit,
-            **kwargs
+            rich_num=rich_num, rish_unit=rich_unit, **kwargs
         )
 
         oa_body = message.OaBody(
-            head_bgcolor=head_bgcolor, head_text=head_text,
-            body=oa_body_content, message_url=message_url, pc_message_url=pc_message_url,
-            **kwargs
+            head_bgcolor=head_bgcolor, head_text=head_text, body=oa_body_content,
+            message_url=message_url, pc_message_url=pc_message_url, **kwargs
         )
 
         return oa_body

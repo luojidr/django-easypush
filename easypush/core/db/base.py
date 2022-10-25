@@ -1,4 +1,4 @@
-from datetime import date, datetime
+import datetime
 
 from django.db import models
 from django.utils import timezone
@@ -28,7 +28,7 @@ class AutoExecutor:
 
 
 class BaseAbstractModel(models.Model):
-    """ 数据库 Model """
+    """ BaseModel """
 
     creator = models.CharField(verbose_name="创建人", max_length=200, default=AutoExecutor())
     modifier = models.CharField(verbose_name="创建人", max_length=200, default=AutoExecutor())
@@ -39,15 +39,6 @@ class BaseAbstractModel(models.Model):
     class Meta:
         abstract = True
         ordering = ["-id"]
-
-    def default(self, o):
-        if isinstance(o, datetime):
-            return o.strftime("%Y-%m-%d %H:%M:%S")
-
-        if isinstance(o, date):
-            return o.strftime("%Y-%m-%d")
-
-        return o
 
     def save(self, *args, **kwargs):
         if not self.create_time:
@@ -72,15 +63,14 @@ class BaseAbstractModel(models.Model):
 
     @classmethod
     def fields(cls, exclude=()):
-        """ 获取非 BaseAbstractModel 的字段
+        """ Only obtain fields of BaseAbstractModel
          fields:
             cls._meta.get_fields()
          """
         fields = []
         exclude_fields = set(exclude)
-        abc_meta_cls = getattr(BaseAbstractModel, "_meta", None)
-        abc_fields = abc_meta_cls.fields if abc_meta_cls else []
-        abc_fields_name_list = [_field.name for _field in abc_fields]
+        base_meta = BaseAbstractModel._meta
+        base_fields_names = [_field.name for _field in base_meta.fields]
 
         for field in cls._meta.fields:
             field_name = field.attname
@@ -88,7 +78,7 @@ class BaseAbstractModel(models.Model):
             if field_name in exclude_fields:
                 continue
 
-            if field_name not in abc_fields_name_list:
+            if field_name not in base_fields_names:
                 fields.append(field_name)
 
         return fields
@@ -109,6 +99,15 @@ class BaseAbstractModel(models.Model):
     @classmethod
     def deprecated_fields(cls):
         return [_field.name for _field in BaseAbstractModel._meta.fields]
+
+    def default(self, o):
+        if isinstance(o, datetime.datetime):
+            return o.strftime("%Y-%m-%d %H:%M:%S")
+
+        if isinstance(o, datetime.date):
+            return o.strftime("%Y-%m-%d")
+
+        return o
 
     @classmethod
     def get_shard(cls, sharding_table):

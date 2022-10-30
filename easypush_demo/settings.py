@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'django_extensions',
+
     'easypush',
 ]
 
@@ -77,8 +79,12 @@ WSGI_APPLICATION = 'easypush_demo.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'fosun_circle_dev',
+        'HOST': '127.0.0.1',
+        'PORT': 3306,
+        'USER': 'root',
+        'PASSWORD': 'root',
     }
 }
 
@@ -127,10 +133,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # EASYPUSH
 EASYPUSH = {
     "default": {
-        "BACKEND": "easypush.backends.qy_weixin.QyWeixinClient",
-        "CORP_ID": "ww4846c4bd94a6f0e7",
-        "AGENT_ID": 1000002,
-        "APP_KEY": "",
-        "APP_SECRET": "uhenzt1cy77UBXNEWiRr-e7jvxKfN_zZ-kb44OW2PMc",
+        
     },
 }

@@ -1,4 +1,9 @@
+import types
+import typing
+import inspect
+
 from easypush.backends.base.body import MsgBodyBase
+from easypush.backends.base.body import BodyFieldValidator
 
 
 class QyWXBodyBase(MsgBodyBase):
@@ -160,4 +165,259 @@ class MiniProgramBody(QyWXBodyBase):
         )
 
 
+class TemplateCardBase(QyWXBodyBase):
+    _msgtype = 'template_card'
 
+    card_type = None
+    task_id = None
+    sub_title_text = None
+    source = None
+    action_menu = None
+    main_title = None
+    quote_area = None
+    horizontal_content_list = None
+    jump_list = None
+    card_action = None
+
+    emphasis_content = None
+    image_text_area = None
+    card_image = None
+    vertical_content_list = None
+    button_selection = None
+    button_list = None
+
+    checkbox = None
+    submit_button = None
+
+    select_list = None
+
+    def __init__(self, **kwargs):
+        if self.card_type is None:
+            raise ValueError(" TemplateCard.card_type not allowed empty")
+
+        self._cleaned_kwargs = {}
+        self._raw_kwargs = kwargs
+
+        for name in self._get_template_card_attrs():
+            if not self._raw_kwargs.get(name):
+                continue
+
+            attr_or_method = getattr(self, "_get_%s" % name, None)
+            if attr_or_method and callable(attr_or_method):
+                valid_data = attr_or_method()
+                self._cleaned_kwargs.update(valid_data)
+            else:
+                self._cleaned_kwargs[name] = self._raw_kwargs[name]
+
+        super().__init__(**self._cleaned_kwargs)
+
+    def _get_template_card_attrs(self):
+        """ Not parent class attributes """
+        attrs = getattr(self, "_template_card_attrs", None)
+        if attrs:
+            return attrs
+
+        predicate = (lambda o: not isinstance(o, (typing.Callable, types.GeneratorType)))
+        self_members = inspect.getmembers(TemplateCardBase, predicate=predicate)
+        self_attrs = [item[0] for item in self_members if not item[0].startswith("_")]
+
+        base_members = inspect.getmembers(TemplateCardBase.__base__, predicate)
+        base_attrs = [item[0] for item in base_members if not item[0].startswith("_")]
+
+        attrs = list(set(self_attrs) - set(base_attrs))
+        setattr(self, "_template_card_attrs", attrs)
+        return attrs
+
+    def _get_source(self):
+        source = BodyFieldValidator("source", type="dict", required=False)
+        source.add_field("icon_url", required=False)
+        source.add_field("desc", required=False)
+        source.add_field("desc_color", required=False)
+
+        return source.get_valid_data(self._raw_kwargs)
+
+    def _get_action_menu(self):
+        action_menu = BodyFieldValidator("action_menu", type="dict", required=False)
+        action_menu.add_field("desc", required=False)
+
+        action_list = BodyFieldValidator("action_list", type="list", required=True)
+        action_list.add_field("key", required=True)
+        action_list.add_field("text", required=True)
+
+        action_menu.add_field(validator=action_list)
+        return action_menu.get_valid_data(self._raw_kwargs)
+
+    def _get_main_title(self):
+        main_title = BodyFieldValidator("main_title", type="dict", required=False)
+        main_title.add_field("title", required=False)
+        main_title.add_field("desc", required=False)
+
+        return main_title.get_valid_data(self._raw_kwargs)
+
+    def _get_quote_area(self):
+        quote_area = BodyFieldValidator("quote_area", type="dict", required=False)
+        quote_area.add_field("type", required=False)
+        quote_area.add_field("url", required=False)
+        quote_area.add_field("appid", required=False)
+        quote_area.add_field("pagepath", required=False)
+        quote_area.add_field("title", required=False)
+        quote_area.add_field("quote_text", required=False)
+
+        return quote_area.get_valid_data(self._raw_kwargs)
+
+    def _get_horizontal_content_list(self):
+        horizontal_content_list = BodyFieldValidator("horizontal_content_list", type="list", required=False)
+        horizontal_content_list.add_field("type", required=False)
+        horizontal_content_list.add_field("keyname", required=True)
+        horizontal_content_list.add_field("value", required=False)
+        horizontal_content_list.add_field("url", required=False)
+        horizontal_content_list.add_field("media_id", required=False)
+        horizontal_content_list.add_field("userid", required=False)
+
+        return horizontal_content_list.get_valid_data(self._raw_kwargs)
+
+    def _get_jump_list(self):
+        jump_list = BodyFieldValidator("jump_list", type="list", required=False)
+        jump_list.add_field("type", required=False)
+        jump_list.add_field("title", required=True)
+        jump_list.add_field("url", required=False)
+        jump_list.add_field("appid", required=False)
+        jump_list.add_field("pagepath", required=False)
+
+        return jump_list.get_valid_data(self._raw_kwargs)
+
+    def _get_card_action(self):
+        card_action = BodyFieldValidator("card_action", type="dict", required=True)
+        card_action.add_field("type", required=True)
+        card_action.add_field("url", required=False)
+        card_action.add_field("appid", required=False)
+        card_action.add_field("pagepath", required=False)
+
+        return card_action.get_valid_data(self._raw_kwargs)
+
+    def _get_emphasis_content(self):
+        emphasis_content = BodyFieldValidator("emphasis_content", type="dict", required=False)
+        emphasis_content.add_field("title", required=False)
+        emphasis_content.add_field("desc", required=False)
+
+        return emphasis_content.get_valid_data(self._raw_kwargs)
+
+    def _get_image_text_area(self):
+        image_text_area = BodyFieldValidator("image_text_area", type="dict", required=False)
+        image_text_area.add_field("type", required=False)
+        image_text_area.add_field("url", required=False)
+        image_text_area.add_field("appid", required=False)
+        image_text_area.add_field("pagepath", required=False)
+        image_text_area.add_field("title", required=False)
+        image_text_area.add_field("desc", required=False)
+        image_text_area.add_field("image_url", required=True)
+
+        return image_text_area.get_valid_data(self._raw_kwargs)
+
+    def _get_card_image(self):
+        card_image = BodyFieldValidator("card_image", type="dict", required=False)
+        card_image.add_field("url", required=True)
+        card_image.add_field("aspect_ratio", required=False)
+
+        return card_image.get_valid_data(self._raw_kwargs)
+
+    def _get_vertical_content_list(self):
+        vertical_content_list = BodyFieldValidator("vertical_content_list", type="list", required=False)
+        vertical_content_list.add_field("title", required=True)
+        vertical_content_list.add_field("desc", required=False)
+
+        return vertical_content_list.get_valid_data(self._raw_kwargs)
+
+    def _get_button_selection(self):
+        button_selection = BodyFieldValidator("button_selection", type="dict", required=True)
+        button_selection.add_field("question_key", required=True)
+        button_selection.add_field("selected_id", required=False)
+        button_selection.add_field("title", required=False)
+
+        option_list = BodyFieldValidator("option_list", type="list", required=True)
+        option_list.add_field("id", required=True)
+        option_list.add_field("text", required=True)
+
+        button_selection.add_field(validator=option_list)
+        return button_selection.get_valid_data(self._raw_kwargs)
+
+    def _get_button_list(self):
+        button_list = BodyFieldValidator("button_list", type="list", required=True)
+        button_list.add_field("type", required=False)
+        button_list.add_field("text", required=True)
+        button_list.add_field("style", required=False)
+        button_list.add_field("key", required=False)
+        button_list.add_field("url", required=False)
+
+        return button_list.get_valid_data(self._raw_kwargs)
+
+    def _get_checkbox(self):
+        checkbox = BodyFieldValidator("checkbox", type="dict", required=False)
+        checkbox.add_field("question_key", required=True)
+        checkbox.add_field("mode", required=False)
+
+        option_list = BodyFieldValidator("option_list", type="list", required=False)
+        option_list.add_field("id", required=True)
+        option_list.add_field("text", required=True)
+        option_list.add_field("is_checked", required=True)
+
+        checkbox.add_field(option_list)
+        return checkbox.get_valid_data(self._raw_kwargs)
+
+    def _get_submit_button(self):
+        submit_button = BodyFieldValidator("button_list", type="dict", required=False)
+        submit_button.add_field("text", required=True)
+        submit_button.add_field("key", required=True)
+
+        return submit_button.get_valid_data(self._raw_kwargs)
+
+    def _get_select_list(self):
+        select_list = BodyFieldValidator("select_list", type="list", required=True)
+        select_list.add_field("question_key", required=True)
+        select_list.add_field("title", required=False)
+        select_list.add_field("selected_id", required=False)
+
+        option_list = BodyFieldValidator("option_list", type="list", required=False)
+        option_list.add_field("id", required=True)
+        option_list.add_field("text", required=True)
+
+        select_list.add_field(option_list)
+        return select_list.get_valid_data(self._raw_kwargs)
+
+
+class TextNoticeBody(TemplateCardBase):
+    card_type = 'text_notice'
+
+    def __init__(self, emphasis_content=None, **kwargs):
+        super().__init__(emphasis_content=emphasis_content, **kwargs)
+
+
+class NewsNoticeBody(TemplateCardBase):
+    card_type = 'news_notice'
+
+    def __init__(self, image_text_area=None, card_image=None, vertical_content_list=None, **kwargs):
+        super().__init__(
+            image_text_area=image_text_area, card_image=card_image,
+            vertical_content_list=vertical_content_list, **kwargs
+        )
+
+
+class ButtonInteractionBody(TemplateCardBase):
+    card_type = 'button_interaction'
+
+    def __init__(self, button_selection, button_list, **kwargs):
+        super().__init__(button_selection=button_selection, button_list=button_list, **kwargs)
+
+
+class VoteInteractionBody(TemplateCardBase):
+    card_type = 'vote_interaction'
+
+    def __init__(self, checkbox=None, submit_button=None, **kwargs):
+        super().__init__(checkbox=checkbox, submit_button=submit_button, **kwargs)
+
+
+class MultipleInteractionBody(TemplateCardBase):
+    card_type = 'multiple_interaction'
+
+    def __init__(self, select_list, submit_button, **kwargs):
+        super().__init__(select_list=select_list, submit_button=submit_button, **kwargs)

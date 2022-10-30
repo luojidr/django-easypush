@@ -39,6 +39,100 @@ class MsgBodyBase:
         return self._msgtype
 
 
+class BodyFieldValidator:
+    """
+    >>> raw_data = {
+        "select_list": {
+            "key": "multi",
+            "text": "Sample",
+            "list": [
+                {
+                    "question_key": "question_key1",
+                    "title": "选择器标签1",
+                    "selected_id": "selection_id1",
+                    "option_list": [
+                        {
+                            "id": "selection_id1",
+                            "text": "选择器选项1"
+                        },
+                        {
+                            "id": "selection_id2",
+                            "text": "选择器选项2"
+                        }
+                    ]
+                },
+            ],
+        }
+    }
+
+    >>> select_list = BodyFieldValidator("select_list", type="dict", required=True)
+    >>> select_list.add_field("key", required=True)
+    >>> select_list.add_field("text", required=False)
+
+    >>> _list = BodyFieldValidator("list", type="list", required=True)
+    >>> _list.add_field("question_key", required=True)
+    >>> _list.add_field("title", required=False)
+    >>> _list.add_field("selected_id", required=False)
+
+    >>> option_list = BodyFieldValidator("option_list", type="list", required=True)
+    >>> option_list.add_field("id", required=True)
+    >>> option_list.add_field("text", required=False)
+    >>> _list.add_field(validator=option_list)
+
+    >>> select_list.add_field(validator=_list)
+    """
+
+    def __init__(self, key=None, type=None, required=False, fields=()):
+        self.field_name = key
+        self.field_type = type
+        self.required = required
+        self._item_fields = fields or []
+        self._factory = type and eval(self.field_type) or None
+
+    def add_field(self, key=None, type=None, required=False, validator=None):
+        if validator is not None:
+            v = validator
+        else:
+            v = BodyFieldValidator(key=key, type=type, required=required)
+
+        self._item_fields.append(v)
+
+    def get_valid_data(self, raw_data):
+        if self.field_name is None or not isinstance(self.field_name, str):
+            raise ValueError("BodyFieldValidator.field_name is empty")
+
+        if self.required and self.field_name not in raw_data:
+            raise ValueError("BodyFieldValidator field: %s is required" % self.field_name)
+
+        if not self._item_fields:
+            return raw_data.get(self.field_name)
+
+        result = self._factory()
+        raw_data = raw_data.get(self.field_name, self._factory())
+
+        if self.field_type == "dict":
+            data = result.setdefault(self.field_name, {})
+
+            for v in self._item_fields:
+                v_data = v.get_valid_data(raw_data)
+                if v_data is not None:
+                    data[v.field_name] = v_data[v.field_name] if isinstance(v_data, dict) else v_data
+
+        elif self.field_type == "list":
+            for raw_items in raw_data:
+                new_items = {}
+
+                for v in self._item_fields:
+                    v_data = v.get_valid_data(raw_items)
+                    new_items[v.field_name] = v_data
+
+                result.append(new_items)
+
+            result = {self.field_name: result}
+
+        return result
+
+
 class ParserBodyBase:
     MESSAGE_TYPE_ENUM = None
     MESSAGE_MEDIA_ENUM = None

@@ -2,11 +2,13 @@ from .api import body as QyWXBody
 from easypush.utils import exceptions
 from easypush.utils.util import to_binary
 from easypush.utils.constants import QyWXMediaEnum
+from easypush.utils.constants import QyWXMessageTypeEnum
 from easypush.backends.base.body import ParserBodyBase
 
 
 class QyWXMessageBodyParser(ParserBodyBase):
     MESSAGE_MEDIA_ENUM = QyWXMediaEnum
+    MESSAGE_TYPE_ENUM = QyWXMessageTypeEnum
 
     def _validate_field_length(self, fields, body_name=None):
         """校验消息体字段长度 """
@@ -112,3 +114,12 @@ class QyWXMessageBodyParser(ParserBodyBase):
                 raise exceptions.ExceedContentMaxSizeError("QyWXBody.MiniProgramBody value exceed 30.")
 
         return QyWXBody.MiniProgramBody(appid, title, page, description, emphasis_first_item, content_item, **kwargs)
+
+    def get_template_card_body(self, card_type, **kwargs):
+        cls_name = card_type.title().replace("_", "") + "Body"
+        card_type_body_cls = getattr(QyWXBody, cls_name, None)
+
+        if card_type_body_cls is None:
+            raise ModuleNotFoundError("`QyWXBody` module not find `%s` class" % cls_name)
+
+        return card_type_body_cls(**kwargs)

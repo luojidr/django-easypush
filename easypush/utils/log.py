@@ -47,6 +47,12 @@ class Logger:
 
     @property
     def traceback(self):
+        """
+        demo:
+            @logger.traceback
+            def func(*args, **kwargs):
+                pass
+        """
         return self._logger.catch
 
     def __getattr__(self, name):

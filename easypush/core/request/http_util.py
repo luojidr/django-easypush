@@ -31,22 +31,18 @@ class HttpUtil:
         return self._parse_response()
 
     def _parse_response(self):
-        result = {}
         headers = self._response.headers
         content_type = headers.get("Content-Type", "")
         raw_content = self._response.read()
 
         if "application/json" in content_type:
-            result["type"] = "dict"
-            result["data"] = json.loads(raw_content)
+            result = json.loads(raw_content)
         else:
             charset = headers._charset
-            result["type"] = "text"
-
             if charset is None:
                 charset = "utf-8"
 
-            result["data"] = raw_content.decode(charset)
+            result = raw_content.decode(charset)
 
         return result
 

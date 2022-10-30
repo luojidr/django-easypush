@@ -18,6 +18,10 @@ class MessageTypeError(EasyPushError):
     pass
 
 
+class MessagePlatformError(EasyPushError):
+    pass
+
+
 class MessageBodyFieldError(EasyPushError):
     pass
 
@@ -27,4 +31,8 @@ class NotExistMessageBodyMethod(EasyPushError):
 
 
 class ExceedContentMaxSizeError(EasyPushError):
+    pass
+
+
+class CeleryAppNotFoundError(EasyPushError):
     pass

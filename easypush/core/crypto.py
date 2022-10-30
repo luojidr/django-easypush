@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ `pycryptodome` Python Package"""
 
 import base64

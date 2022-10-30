@@ -7,13 +7,10 @@ from .parser import QyWXMessageBodyParser
 from easypush.backends.base.base import ClientMixin
 from easypush.backends.base.body import MsgBodyBase
 from easypush.utils.constants import QyWXMediaEnum
-from easypush.utils.decorators import std_response
-from easypush.utils.constants import QyWXMessageTypeEnum
 
 
 class QyWeixinBase(ClientMixin):
     CLIENT_NAME = "qy_weixin"
-    MESSAGE_TYPE_ENUM = QyWXMessageTypeEnum
     API_BASE_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
 
     def __init__(self, **kwargs):
@@ -22,19 +19,14 @@ class QyWeixinBase(ClientMixin):
         self._token_dict = {}
         self._message = QyMessage(client=self)
 
-    @std_response
     def get_access_token(self):
         """ 获取应用 access token
         Data:
             {
-                "code": 200,
-                "msg": "ok,
-                "data": {
-                    "errcode": 0,
-                    "errmsg": "ok",
-                    "access_token": "accesstoken000001",
-                    "expires_in": 7200
-                }
+                "errcode": 0,
+                "errmsg": "ok",
+                "access_token": "accesstoken000001",
+                "expires_in": 7200
             }
         """
         params = dict(corpid=self._corp_id, corpsecret=self._app_secret)
@@ -47,7 +39,7 @@ class QyWeixinBase(ClientMixin):
         token_expires = self._token_dict.get("expires_in", 2 * 60 * 60)
 
         if now_timestamp - token_timestamp > token_expires or self._token_dict.get("errcode") != 0:
-            self._token_dict = self.get_access_token()["data"]
+            self._token_dict = self.get_access_token()
             self._token_dict["timestamp"] = now_timestamp
 
         return self._token_dict["access_token"]

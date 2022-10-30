@@ -13,13 +13,12 @@ from django.core.files.base import File
 
 from .parser import DingMessageBodyParser
 from easypush.backends.base.base import ClientMixin
-from easypush.utils.decorators import std_response
 from easypush.utils.constants import DingTalkMediaEnum
 from easypush.utils.util import to_text
 
 
 class DingBase(ClientMixin):
-    CLIENT_NAME = "dingtalk"
+    CLIENT_NAME = "ding_talk"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -31,7 +30,6 @@ class DingBase(ClientMixin):
         )
         self._message = Message(client=self._client)
 
-    @std_response
     def get_access_token(self):
         """ 获取应用 access token """
         return self._client.get_access_token()
@@ -42,7 +40,6 @@ class DingTalkClient(DingBase, DingMessageBodyParser):
         super().__init__(**kwargs)
         self._msg_type = msg_type
 
-    @std_response
     def upload_media(self, media_type, filename=None, media_file=None):
         """ Upload Image, file, voice
         :param media_type: 媒体文件类型，分别有图片（image）、语音（voice）、普通文件(file)
@@ -79,7 +76,6 @@ class DingTalkClient(DingBase, DingMessageBodyParser):
 
         return result
 
-    @std_response
     def async_send(self, msgtype, body_kwargs, userid_list=(),
                    dept_id_list=(), to_all_user=False, result_processor=None):
         """ 企业会话消息异步发送
@@ -105,19 +101,19 @@ class DingTalkClient(DingBase, DingMessageBodyParser):
         userid_list = ",".join(map(to_text, userid_list))
         dept_id_list = ",".join(map(to_text, dept_id_list))
 
-        # dingtalk 包的 result_processor 只返回 taskid， Override
         params = optionaldict(dict(
             msg=message_body.get_dict(), agent_id=self._agent_id,
             userid_list=userid_list or None, dept_id_list=dept_id_list or None,
             to_all_user='true' if to_all_user else 'false'
         ))
 
-        return self._message._top_request(
-            'dingtalk.oapi.message.corpconversation.asyncsend_v2',
-            params=params, result_processor=result_processor
-        )
+        # Set result_processor
+        method = 'dingtalk.oapi.message.corpconversation.asyncsend_v2'
+        result = self._message._top_request(method, params=params, result_processor=result_processor)
 
-    @std_response
+        response_key = method.replace('.', '_') + "_response"
+        return result.get(response_key, result)
+
     def recall(self, task_id):
         """ 撤回工作通知消息
         :param task_id: 发送工作通知返回的 taskId

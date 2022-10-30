@@ -9,7 +9,6 @@ from django.core.files.base import File
 
 from easypush.utils.log import Logger
 from easypush.utils.settings import config
-from easypush.utils.decorators import std_response
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.core.request.http_util import HttpUtil
 from easypush.core.request.multipart import MultiPartForm
@@ -32,11 +31,7 @@ class PushApiBase:
         if not api_base_url:
             raise ValueError("One Push Client `API_BASE_URL` not allowed empty.")
 
-        if method == "GET":
-            req_func = self._get
-        else:
-            req_func = self._post
-
+        req_func = self._get if method == "GET" else self._post
         base_url = endpoint.replace(".", "/")
         url = urljoin(api_base_url, base_url)
 
@@ -45,32 +40,27 @@ class PushApiBase:
 
         if upload_files:
             form = self.MULTIPART_FORM_CLS()
+            for post_key, post_val in kwargs.pop("data", {}).items():
+                form.add_field(post_key, post_val)
 
-            # upload_files: a tuple of list, eg: [(fieldname, filename, file_bytes, mimetype)]
+            # Upload => upload_files: a tuple of list, eg: [(fieldname, filename, file_bytes, mimetype)]
             for file_args in upload_files:
-                fieldname = file_args[0]
-                filename = file_args[1]
                 file_bytes = file_args[2]
                 mimetype = file_args[3] if len(file_args) > 3 else None
 
                 form.add_file(
-                    fieldname=fieldname, filename=filename,
+                    fieldname=file_args[0], filename=file_args[1],
                     file_handle=io.BytesIO(file_bytes), mimetype=mimetype
                 )
-
-            for post_key, post_val in kwargs.pop("data", {}).items():
-                form.add_field(post_key, post_val)
 
             kwargs["data"] = bytes(form)
             headers["Content-Type"] = form.get_content_type()
             headers["Content-length"] = len(kwargs["data"])
         elif not headers:
-            headers['Content-Type'] = 'application/json'
+            headers['Content-Type'] = 'application/json'  # default header
 
         kwargs["headers"] = headers
-
-        wrapper_callback = std_response(req_func)
-        return wrapper_callback(url, **kwargs)
+        return req_func(url, **kwargs)
 
     def _get(self, url, params=None, **kwargs):
         return self.REQUEST_CLS(url, params=params, **kwargs).get()
@@ -154,5 +144,9 @@ class ClientMixin(PushApiBase):
     @property
     def msgtype(self):
         return self._msg_type
+
+    @property
+    def client_name(self):
+        return self.CLIENT_NAME
 
 

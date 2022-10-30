@@ -4,6 +4,8 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
 from easypush.utils.util import DEFAULT_DATETIME
 from easypush.utils.constants import AppPlatformEnum, QyWXMediaEnum
+from easypush.utils.constants import QyWXMessageTypeEnum
+from easypush.utils.constants import DingTalkMessageTypeEnum
 from easypush.core.db.base import BaseAbstractModel
 from easypush.core.crypto import AESHelper
 from easypush.core.path_builder import PathBuilder
@@ -19,7 +21,7 @@ class AppTokenPlatformModel(BaseAbstractModel):
     TOKEN_KEY = "jvum7is)@ftae=iv"      # 固定值: 16位
 
     corp_id = models.CharField(verbose_name="企业corpId", max_length=100, db_index=True, default="")
-    app_name = models.CharField(verbose_name="应用名称", max_length=100, unique=True, default="")
+    app_name = models.CharField(verbose_name="应用名称", max_length=100, default="")
     agent_id = models.IntegerField(verbose_name="AppId", unique=True, default=0)
     app_key = models.CharField(verbose_name="应用 appKey", max_length=200, default="")
     app_secret = models.CharField(verbose_name="应用 appSecret", max_length=500, default="")
@@ -34,7 +36,7 @@ class AppTokenPlatformModel(BaseAbstractModel):
         return "<Platform:%s agentId: %s>" % (self.platform_type, self.agent_id)
 
     def encrypt_token(self):
-        raw = "%s:%s:%s:%s" % (self.agent_id, self.corp_id, self.app_key, self.app_secret)
+        raw = "%s:%s:%s:%s:%s" % (self.agent_id, self.corp_id, self.app_key, self.app_secret, self.platform_type)
         cipher_text = AESHelper(key=self.TOKEN_KEY).encrypt(raw=raw)
 
         return cipher_text
@@ -58,10 +60,10 @@ class AppTokenPlatformModel(BaseAbstractModel):
 
             return app_obj
         except Exception:
-            raise ObjectDoesNotExist("媒体上传的微应用 app_token 不合法！")
+            raise ObjectDoesNotExist("应用 app_token 不合法！")
 
 
-class StorageAppMediaModel(BaseAbstractModel):
+class AppMediaStorageModel(BaseAbstractModel):
     MEDIA_CHOICES = [(q_enum.type, q_enum.desc) for q_enum in QyWXMediaEnum.iterator()]
 
     app = models.ForeignKey(to="AppTokenPlatformModel", verbose_name="应用id", on_delete=models.CASCADE, related_name="app")
@@ -93,17 +95,18 @@ class StorageAppMediaModel(BaseAbstractModel):
 
 
 class AppMessageModel(BaseAbstractModel):
-    MSG_CHOICES = [
-    ]
+    MSG_CHOICES = QyWXMessageTypeEnum.get_message_type_items() + \
+                  DingTalkMessageTypeEnum.get_message_type_items()
 
     app = models.ForeignKey(to=AppTokenPlatformModel, verbose_name="应用id", default=None, on_delete=models.CASCADE)
-    media = models.ForeignKey(to=StorageAppMediaModel, verbose_name="媒体id", default=None, on_delete=models.DO_NOTHING)
+    media = models.ForeignKey(to=AppMediaStorageModel, verbose_name="媒体id", default=None, on_delete=models.DO_NOTHING)
     msg_title = models.CharField(verbose_name="消息标题", max_length=500, default="", blank=True)
     msg_media = models.CharField(verbose_name="消息图片", max_length=500, default="", blank=True)
     msg_type = models.SmallIntegerField(verbose_name="消息类型", choices=MSG_CHOICES, default=0, blank=True)
     msg_text = models.CharField(verbose_name="消息文本", max_length=1000, default="", blank=True)
     msg_url = models.CharField(verbose_name="APP跳转链接", max_length=500, default="", blank=True)
     msg_pc_url = models.CharField(verbose_name="PC跳转链接", max_length=500, default="", blank=True)
+    msg_extra_json = models.CharField(verbose_name="消息JSON数据", max_length=1000, default="", blank=True)
     platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
 
     class Meta:
@@ -113,7 +116,9 @@ class AppMessageModel(BaseAbstractModel):
 class AppMsgPushRecordModel(BaseAbstractModel):
     """ 平台应用消息推送记录 """
 
-    app_msg = models.ForeignKey(to=AppMessageModel, related_name="app_msg", default=None, on_delete=models.CASCADE)
+    # 建议不要使用外键, 推送记录没必要过分要求数据一致性和完整性
+    # app_msg = models.ForeignKey(to=AppMessageModel, related_name="app_msg", default=None, on_delete=models.CASCADE)
+    app_msg_id = models.IntegerField(verbose_name="消息主体", default=None, blank=True)
     sender = models.CharField(verbose_name="推送人(默认系统)", max_length=100, default="sys", blank=True)
     send_time = models.DateTimeField(verbose_name="推送时间", auto_now_add=True, blank=True)
     receiver_mobile = models.CharField(verbose_name="接收人手机号", max_length=20, default="", db_index=True, blank=True)
@@ -122,7 +127,7 @@ class AppMsgPushRecordModel(BaseAbstractModel):
     is_read = models.BooleanField(verbose_name="接收人是否已读", default=False, blank=True)
     read_time = models.DateTimeField(verbose_name="接收人已读时间", default=DEFAULT_DATETIME, blank=True)
     is_success = models.BooleanField(verbose_name="推送是否成功", default=False, blank=True)
-    traceback = models.CharField(verbose_name="推送异常", max_length=2000, default="", blank=True)
+    traceback = models.CharField(verbose_name="推送异常", max_length=1200, default="", blank=True)
     task_id = models.CharField(verbose_name="钉钉创建的异步发送任务ID", default="", max_length=100, db_index=True, blank=True)
     request_id = models.CharField(verbose_name="钉钉推送的请求ID", max_length=100, default="", blank=True)
     msg_uid = models.CharField(verbose_name="消息唯一id", default="", max_length=100, unique=True, blank=True)

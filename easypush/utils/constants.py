@@ -15,11 +15,11 @@ class EnumBase(enum.Enum):
 
 
 class AppPlatformEnum(EnumBase):
-    DING_DING = ("ding", "钉钉")
-    QY_WEIXIN = ("qy_wx", "企业微信")
-    FEISHU = ("feishu", "飞书")
     SMS = ("sms", "短信")
     EMAIL = ("email", "邮件")
+    FEISHU = ("feishu", "飞书")
+    DING_DING = ("ding_talk", "钉钉")
+    QY_WEIXIN = ("qy_weixin", "企业微信")
 
     @property
     def type(self):
@@ -93,14 +93,23 @@ class _MessageTypeEnumBase(EnumBase):
     def type(self):
         return self.value[0]
 
+    @property
+    def desc(self):
+        return self.value[1]
+
     @classmethod
     def get_message_enum(cls, msg_type):
         enum_list = [each_enum for each_enum in cls.iterator() if each_enum.type == msg_type]
 
         if not enum_list:
-            raise ValueError("Not exist `%s` DingTalkMediaEnum" % msg_type)
+            raise ValueError("%s not exist `%s` enum" % (cls.__name__, msg_type))
 
         return enum_list[0]
+
+    @classmethod
+    def get_message_type_items(cls):
+        msg_type_result = {_enum.type: _enum.desc for _enum in cls.iterator()}
+        return list(msg_type_result.items())
 
 
 class DingTalkMessageTypeEnum(_MessageTypeEnumBase):
@@ -126,5 +135,6 @@ class QyWXMessageTypeEnum(_MessageTypeEnumBase):
     MARKDOWN = ("markdown", "markdown 消息")
     TEXT_CARD = ("textcard", "文本卡片消息")
     MINI_PROGRAM_NOTICE = ("miniprogram_notice", "小程序通知消息")
+    TEMPLATE_CARD = ("template_card", "模板卡片消息")
 
 

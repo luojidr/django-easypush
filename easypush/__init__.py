@@ -6,7 +6,7 @@ openapi.py 公共开放接口，继承上述所有平台开发
 from asgiref.local import Local
 
 from django.conf import settings
-from easypush.client.message import AppMessage
+from easypush.client.message import AppMessageHandler
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.utils.exceptions import InvalidBackendConfigError
 
@@ -26,7 +26,7 @@ class EasyPushHandler:
         if alias not in settings.EASYPUSH:
             raise InvalidBackendConfigError("Could not find config for '%s' in settings.EASYPUSH" % alias)
 
-        push = AppMessage(using=alias)
+        push = AppMessageHandler(using=alias)
         self._pushes.caches[alias] = push
         return push
 

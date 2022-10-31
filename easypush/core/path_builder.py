@@ -18,18 +18,9 @@ class PathBuilder:
         self._kwargs = kwargs
 
         self._bucket_name = None
-        self._bucket_capacity = 256
-        self._per_bucket_size = 2000
+        self._bucket_capacity = 128
+        self._per_bucket_size = 500
         self._max_bucket_size = self._bucket_capacity * self._per_bucket_size
-
-    @property
-    def bucket_name(self):
-        if self._bucket_name is not None:
-            return self._bucket_name
-
-        # easy_conf = settings.EASYPUSH["default"]["BACKEND"]
-        self._bucket_name = "app_media"
-        return self._bucket_name
 
     def __call__(self, media_instance, filename):
         media_root = settings.MEDIA_ROOT
@@ -41,7 +32,9 @@ class PathBuilder:
         src_fn, ext = os.path.splitext(filename)  # 文件后缀
 
         while ok_count < try_times:
-            storage_media_path = os.path.join(media_root, self.bucket_name, media_path)
+            bucket_name = media_instance.app.platform_type
+            storage_media_path = os.path.join(media_root, bucket_name, media_path)
+
             if not os.path.exists(storage_media_path):
                 os.makedirs(storage_media_path)
 

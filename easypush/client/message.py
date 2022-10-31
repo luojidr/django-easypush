@@ -24,8 +24,8 @@ class MessageBase:
 
 class AppMessageHandler(MessageBase):
     """ 应用消息 """
-    def upload_media(self, media_type, filename=None):
-        return self.AppPlatformEnum.upload_media(media_type, filename=filename)
+    def upload_media(self, media_type, filename=None, media_file=None):
+        return self._client.upload_media(media_type, filename=filename, media_file=media_file)
 
     def async_send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=()):
         result = self._client.async_send(

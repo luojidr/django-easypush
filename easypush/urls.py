@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.urls import re_path, path
 from . import views
 
@@ -10,4 +11,16 @@ urlpatterns = [
         view=views.RetrieveAppTokenPlatformByAgentIdApi.as_view(),
         name="retrieve_app_platform_by_agentid"
     ),
+
+    # Media File Storage
+    re_path(r"^api/message/media/upload$", view=views.UploadMessageMediaApi.as_view(), name="msg_media_upload"),
+
+    # Preview Media File
+    # eg: /media/preview/23664tfhituj.png?access_token=645rjhfds3kj
+    re_path(
+        "^%s/preview/(?P<key>.*?)$" % settings.MEDIA_URL.strip("/"),
+        view=views.PreviewMediaFileApi.as_view(), name="media_preview"
+    ),
+
+    re_path(r"^api/message/media/list$", view=views.ListMessageMediaApi.as_view(), name="msg_media_list"),
 ]

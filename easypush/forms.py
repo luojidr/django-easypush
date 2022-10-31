@@ -5,7 +5,7 @@ from .core.crypto import BaseCipher
 from .models import AppMediaStorageModel
 
 
-class UploadDingMediaForm(forms.ModelForm):
+class UploadAppMediaForm(forms.ModelForm):
     class Meta:
         model = AppMediaStorageModel
         exclude = model.deprecated_fields() + ["media_url", "post_filename"]

@@ -67,12 +67,12 @@ class AppMediaStorageModel(BaseAbstractModel):
     MEDIA_CHOICES = [(q_enum.type, q_enum.desc) for q_enum in QyWXMediaEnum.iterator()]
 
     app = models.ForeignKey(to="AppTokenPlatformModel", verbose_name="应用id", on_delete=models.CASCADE, related_name="app")
-    media_type = models.SmallIntegerField(verbose_name="媒体类型", choices=MEDIA_CHOICES, default=1, blank=True)
+    media_type = models.CharField(verbose_name="媒体类型", max_length=50, choices=MEDIA_CHOICES, blank=True)
     media_title = models.CharField(verbose_name="媒体名称", max_length=500, default="", blank=True)
     media_id = models.CharField(verbose_name="媒体id", max_length=100, default="", blank=True)
 
-    # 图片保存在服务器端
-    media = models.FileField("媒体链接", upload_to=PathBuilder("media"), storage=default_storage, max_length=500, blank=True)
+    # 图片保存在服务器端(字段名media是前端传过来的文件字段)
+    media = models.FileField("存储路径", upload_to=PathBuilder("media"), storage=default_storage, max_length=200, blank=True)
     key = models.CharField("上传文件key", unique=True, max_length=50, default="", blank=True)
     media_url = models.URLField("媒体文件URL", max_length=500, default="", blank=True)
     file_size = models.IntegerField("文件大小", default=0, blank=True)
@@ -81,7 +81,7 @@ class AppMediaStorageModel(BaseAbstractModel):
     post_filename = models.CharField("处理后的文件名称", max_length=200, default="", blank=True)
     is_share = models.BooleanField("是否共享", default=False, blank=True)
     is_success = models.BooleanField("是否成功", default=False, blank=True)
-    access_token = models.CharField("token秘钥(如果不共享)", max_length=100, default="", blank=True)
+    access_token = models.CharField("共享token", max_length=100, default="", blank=True)
 
     class Meta:
         db_table = "easypush_app_media_storage"

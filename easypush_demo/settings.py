@@ -125,6 +125,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+MEDIA_ROOT = "/data/media/"
+MEDIA_URL = "/media/"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
@@ -133,6 +136,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # EASYPUSH
 EASYPUSH = {
     "default": {
-        
+        "BACKEND": "easypush.backends.qy_weixin.QyWeixinClient",
+        "CORP_ID": "ww4846c4bd94a6f0e7",
+        "AGENT_ID": 1000002,
+        "APP_KEY": "",
+        "APP_SECRET": "uhenzt1cy77UBXNEWiRr-e7jvxKfN_zZ-kb44OW2PMc",
+
+        # "BACKEND": "easypush.backends.ding_talk.DingTalkClient",
+        # "CORP_ID": "ding4e6401e79ad1dad8a39a90f97fcb1e09",
+        # "AGENT_ID": 1988606171,
+        # "APP_KEY": "dingroihmpxlgdgi3qyp",
+        # "APP_SECRET": "d8QkPEi9YqQl8W9cv_se_Cre417ZwHEXeo95iw62SD1QEJdMRUkzZQ96D4Yvycv3",
     },
 }

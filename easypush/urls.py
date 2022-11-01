@@ -13,7 +13,7 @@ urlpatterns = [
     ),
 
     # Media File Storage
-    re_path(r"^api/message/media/upload$", view=views.UploadMessageMediaApi.as_view(), name="msg_media_upload"),
+    re_path(r"^api/app/media/upload$", view=views.UploadAppMediaApi.as_view(), name="msg_media_upload"),
 
     # Preview Media File
     # eg: /media/preview/23664tfhituj.png?access_token=645rjhfds3kj
@@ -22,5 +22,6 @@ urlpatterns = [
         view=views.PreviewMediaFileApi.as_view(), name="media_preview"
     ),
 
-    re_path(r"^api/message/media/list$", view=views.ListMessageMediaApi.as_view(), name="msg_media_list"),
+    re_path(r"^api/app/media/list$", view=views.ListAppMediaApi.as_view(), name="app_media_list"),
+    re_path(r"^api/app/message/list$", view=views.ListAppMessageApi.as_view(), name="app_message_list"),
 ]

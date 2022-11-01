@@ -77,7 +77,7 @@ class PreviewMediaFileApi(View):
         return serve(request, path, document_root)
 
 
-class UploadMessageMediaApi(APIView):
+class UploadAppMediaApi(APIView):
     def post(self, request, *args, **kwargs):
         """ 上传消息媒体文件 """
         data = request.data
@@ -106,7 +106,7 @@ class UploadMessageMediaApi(APIView):
         return Response(data=form.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ListMessageMediaApi(ListAPIView):
+class ListAppMediaApi(ListAPIView):
     serializer_class = serializers.AppMediaStorageSerializer
 
     def get_queryset(self):
@@ -121,3 +121,8 @@ class ListMessageMediaApi(ListAPIView):
         media_title and query_kwargs.update(media_title__contains=media_title)
 
         return models.AppMediaStorageModel.objects.filter(**query_kwargs).all()
+
+
+class ListAppMessageApi(ListAPIView):
+    serializer_class = serializers.AppMessageSerializer
+    queryset = models.AppMessageModel.objects.filter(is_del=False).all()

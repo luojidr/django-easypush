@@ -106,7 +106,7 @@ class AppMessageModel(BaseAbstractModel):
     msg_text = models.CharField(verbose_name="消息文本", max_length=1000, default="", blank=True)
     msg_url = models.CharField(verbose_name="APP跳转链接", max_length=500, default="", blank=True)
     msg_pc_url = models.CharField(verbose_name="PC跳转链接", max_length=500, default="", blank=True)
-    msg_extra_json = models.CharField(verbose_name="消息JSON数据", max_length=1000, default="", blank=True)
+    msg_extra_json = models.CharField(verbose_name="消息JSON数据", max_length=2000, default="", blank=True)
     platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
 
     class Meta:

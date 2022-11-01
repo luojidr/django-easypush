@@ -1,5 +1,5 @@
-import re
 import time
+import logging
 import traceback
 from datetime import datetime, timedelta
 
@@ -16,7 +16,8 @@ from .core.crypto import BaseCipher
 from .utils.snowflake import IdGenerator
 from .utils.exceptions import MessagePlatformError
 
-user_model_cls = get_user_model()
+USER_MODEL = get_user_model()
+logger = logging.getLogger("django")
 
 
 class AppTokenPlatformSerializer(serializers.ModelSerializer):
@@ -155,9 +156,8 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
         model = models.AppMsgPushRecordModel
         fields = models.AppMsgPushRecordModel.fields() + ["app_token"]
         read_only_fields = [
-            "app_id", "msg_type_cn", "sender", "send_time",
-            "receiver_job_code", "receive_time", "is_read", "read_time", "is_success",
-            "traceback", "task_id", "request_id", "source_cn", "is_done"
+            "app_id", "msg_type_cn", "sender", "send_time", "receiver_userid", "receive_time", "is_read",
+            "read_time", "is_success", "traceback", "task_id", "request_id", "source_cn", "is_done"
         ]
 
         list_serializer_class = ListAppMsgPushRecordSerializer
@@ -165,7 +165,38 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
     def get_app_token(self, obj):
         return obj.app.app_token
 
-    def get_one_message_body_fingerprint(self, message_value):
+    @property
+    def fingerprint_fields(self):
+        return ["msg_extra_json"]
+
+    def get_fingerprint(self, validated_data=None):
+        """ 消息唯一性指纹 """
+        fingerprint_fields = self.fingerprint_fields
+        fingerprint_info = ":".join(["{%s}" % _field for _field in fingerprint_fields])
+
+        if validated_data:
+            msg_kwargs = {k: validated_data.get(k, "") for k in fingerprint_fields}
+        else:
+            raise ValidationError("无法获取消息指纹")
+
+        fingerprint_msg = fingerprint_info.format(**msg_kwargs)
+        md5 = BaseCipher.crypt_md5(fingerprint_msg)
+
+        return md5
+
+    def query_raw_sql(self, sql, params=None, using=None, columns=()):
+        """ 原生sql查询 """
+        model_cls = self.Meta.model
+        connection = connections[using or DEFAULT_DB_ALIAS]
+        cursor = connection.cursor()
+
+        cursor.execute(sql, params=params)
+        result = cursor.fetchall()
+        mapping_result = [dict(zip(columns, item)) for item in result]
+
+        return mapping_result
+
+    def get_one_message_fingerprint(self, message_value):
         """ 消息主体指纹 """
         fields = models.AppMessageModel.fields()
         required_fields = [name for name in self.fingerprint_fields if name in fields]
@@ -175,7 +206,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
         return BaseCipher.crypt_md5(message_fingerprint)
 
-    def get_multi_message_body_fingerprints(self):
+    def get_message_fingerprints_mapping(self):
         """ 钉钉消息体的指纹映射 """
         msg_body_mappings = {}
         msg_model_cls = models.AppMessageModel
@@ -192,28 +223,25 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
         return msg_body_mappings
 
-    def _get_app_id_by_fingerprint(self, fingerprint):
+    def _get_app_id_by_fingerprint(self, msg_fingerprint):
         redis_conn = get_redis_connection()
 
-        key = self.APP_MSG_BODY_KEY % fingerprint
+        key = self.APP_MSG_BODY_KEY % msg_fingerprint
         app_msg_id = redis_conn.get(key)
 
         return app_msg_id and int(app_msg_id) or None
 
-    def clean_value(self, validated_data):
-        """ 自定义类方法 """
+    def clean_data(self, data):
         id_yield = IdGenerator(1, 1)
-        msg_text = validated_data.get("msg_text", "")
 
-        validated_data.update(
-            is_read=False, is_success=False,
+        data.update(
+            is_read=False, is_success=False, sender="sys",
             send_time=datetime.now(), msg_uid=id_yield.get_id(),
-            sender="sys",
         )
 
-        return validated_data
+        return data
 
-    def get_sent_message_log_fingerprints(self, mobile_list=None, app_ids=None, is_raw=False):
+    def get_sent_log_fingerprints(self, mobile_list=None, app_ids=None, is_raw=False):
         """ 已发送的消息的指纹,用于过滤目的(最近30个月)
             达到快速过滤: 布隆过滤
 
@@ -289,7 +317,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
         return {self.get_fingerprint(validated_data=item): item for item in validated_data_list}
 
-    def _has_message_log_fingerprint(self, app_id, ding_msg_id, mobile, fingerprint):
+    def _has_log_fingerprint(self, app_id, ding_msg_id, mobile, fingerprint):
         redis_conn = get_redis_connection()
 
         key = self.APP_MSG_LOG_KEY % (app_id, ding_msg_id, mobile)
@@ -297,7 +325,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
         return old_fingerprint == fingerprint
 
-    def bulk_insert_fingerprint_to_redis(self, bulk_body_mappings=None, bulk_log_mappings=None, timeout=15 * 60 * 60):
+    def bulk_insert_fingerprint_to_redis(self, bulk_msg_mappings=None, bulk_log_mappings=None, timeout=15 * 60 * 60):
         """ 批量插入Redis,使用 Lua 可极大提升性能
 
         :param bulk_body_mappings: dict,
@@ -349,45 +377,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
         except Exception as e:
             traceback.format_exc()
 
-    @property
-    def fingerprint_fields(self):
-        msg_log_fields = ["receiver_mobile"]
-        msg_fields = ["app_id", "msg_type", "msg_title", "msg_media", "msg_text", "msg_url", "msg_pc_url"]
-
-        return msg_fields + msg_log_fields
-
-    def get_fingerprint(self, validated_data=None):
-        """ 消息唯一性指纹 """
-        model_cls = self.Meta.model
-        fingerprint_fields = self.fingerprint_fields
-        fingerprint_info = ":".join(["{%s}" % _field for _field in fingerprint_fields])
-
-        if validated_data:
-            msg_kwargs = {k: validated_data.get(k, "") for k in fingerprint_fields}
-        else:
-            raise ValidationError("无法获取消息指纹")
-
-        fingerprint_msg = fingerprint_info.format(**msg_kwargs)
-        md5 = BaseCipher.crypt_md5(fingerprint_msg)
-
-        return md5
-
-    def query_raw_sql(self, sql, params=None, using=None, columns=()):
-        """ 原生sql查询 """
-        model_cls = self.Meta.model
-        using = using or DEFAULT_DB_ALIAS
-        connection = connections[using]
-        cursor = connection.cursor()
-
-        cursor.execute(sql, params=params)
-        result = cursor.fetchall()
-        mapping_result = [dict(zip(columns, item)) for item in result]
-
-        return mapping_result
-
     def create(self, validated_data):
-        # logger.info("ListDingMsgPushSerializer.create ===>>> signal create")
-
         # app_token = validated_data.pop("app_token", None)  # app_token 只读字段,只能从 initial_data 中获取
         model_cls = self.Meta.model
         app_token = self.initial_data.get("app_token")
@@ -396,40 +386,25 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
             raise PermissionError("<app_token> 为空, 应用消息无法推送")
 
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
-        agent_id = app_obj.agent_id
-
-        if not app_obj:
-            raise ObjectDoesNotExist("agent_id<%s> 没有找到记录" % agent_id)
-
-        receiver_mobile = validated_data["receiver_mobile"]
-        users = CircleUsersModel.objects.filter(phone_number=receiver_mobile).values("ding_job_code")
-        ding_job_code = users[0]["ding_job_code"] if users else validated_data.get("receiver_job_code", "")
+        # agent_id = app_obj.agent_id
 
         message_data = dict(validated_data, app_id=app_obj.id, **self.initial_data)
-        message_data.update(receiver_job_code=ding_job_code)
-        new_validated_data = self.derive_value(message_data)
+        new_validated_data = self.clean_data(message_data)
 
-        # 钉钉消息主体指纹
-        ding_message_body_mapping = {}
-        ding_message_log_mapping = {}
-        # ding_message_body_mapping = self.get_ding_message_fingerprint_mappings()
-        message_body_fingerprint = self.get_message_body_fingerprint(new_validated_data)
-        ding_msg_id = self._get_app_id_by_msg_fingerprint(message_body_fingerprint)
+        # 消息主体指纹映射
+        message_body_mapping = {}
+        message_body_fingerprint = self.get_one_message_fingerprint(new_validated_data)
+        app_msg_id = self._get_app_id_by_fingerprint(msg_fingerprint=message_body_fingerprint)
 
-        if not ding_msg_id:
-            ding_msg_obj = DingMessageModel.create_object(**new_validated_data)
-            ding_msg_id = ding_msg_obj.id
-            ding_message_body_mapping[message_body_fingerprint] = ding_msg_id
+        if not app_msg_id:
+            app_msg_obj = models.AppMessageModel.create_object(**new_validated_data)
+            app_msg_id = app_msg_obj.id
+            message_body_mapping[message_body_fingerprint] = app_msg_id
 
-        # 消息记录指纹
-        new_validated_data["ding_msg_id"] = ding_msg_id
+        # 消息推送指纹映射
+        message_log_mapping = {}
+        new_validated_data["app_msg_id"] = app_msg_id
         log_fingerprint = self.get_fingerprint(validated_data=new_validated_data)
-
-        # 历史消息指纹(星喜积分:source=1 除外) => 被优化了
-        # is_fingerprint = not new_validated_data.get("source") == 1
-        # msg_log_fingerprint_set = self.get_sent_message_log_fingerprints(
-        #     [receiver_mobile], app_ids=[app_obj.id], is_fingerprint=is_fingerprint
-        # )
 
         # if log_fingerprint not in msg_log_fingerprint_set:
         if not self._has_msg_log_fingerprint(app_obj.id, ding_msg_id, receiver_mobile, log_fingerprint):

@@ -6,7 +6,7 @@ from django.db import transaction
 from django.views import View
 from django.views.static import serve
 from django.http.response import Http404
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -17,6 +17,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView, GenericAPIView
 
 from . import easypush
 from . import forms, models, serializers
+from easypush.tasks.task_send_message import send_message_by_mq
 
 logger = logging.getLogger("django")
 
@@ -126,3 +127,72 @@ class ListAppMediaApi(ListAPIView):
 class ListAppMessageApi(ListAPIView):
     serializer_class = serializers.AppMessageSerializer
     queryset = models.AppMessageModel.objects.filter(is_del=False).all()
+
+
+class SendAppMessageRecordApi(GenericAPIView):
+    MAX_MSG_SIZE_TO_MQ = 100
+    MAX_MSG_BATCH_SIZE = 2000
+    serializer_class = serializers.AppMsgPushRecordSerializer
+
+    def async_send_messages(self, data):
+        """ Asynchronously send messages : first save db, then send messages through mq
+
+        :param data: dict or list of dictionary
+        :return:
+        """
+        is_async = data.pop("is_async", True)
+
+        # First to save message into db
+        serializer = self.serializer_class(data=data)
+        serializer.is_valid(raise_exception=True)
+        message_body = dict(**data)
+
+        # Split `receiver_userid`, Determine whether to send in batch
+        receiver_userid = message_body.pop("receiver_userid", "")
+        userid_list = [m.strip() for m in receiver_userid.split(",") if m.strip()]
+
+        many = len(userid_list) > 1
+        max_batch_size = self.MAX_MSG_BATCH_SIZE
+
+        if many:
+            if not userid_list:
+                raise ValueError("Parameter `receiver_userid` not allowed empty")
+
+            if len(receiver_userid) > max_batch_size:
+                raise ValidationError("The number of `userid` exceeds the maximum limit(max:%s)" % max_batch_size)
+
+            data_or_list = [dict(**message_body, receiver_userid=userid) for userid in userid_list]
+        else:
+            data_or_list = dict(message_body, receiver_userid=receiver_userid)
+
+        # many=True: support batch to create.
+        # If the create method(to batch creation) is not overridden in the `list_serializer_class` class
+        # only-used `serializer_class` class, and the create method will be called to create one by one,
+        # the efficiency is relatively low
+        serializer = self.serializer_class(data=data_or_list, many=many)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        instance_list = instance if isinstance(instance, list) else [instance]
+
+        # Second to asynchronously push messages  into MQ
+        for i in range(0, len(instance_list), max_batch_size):
+            slice_instances = instance_list[i: i + self.MAX_MSG_SIZE_TO_MQ]
+            msg_uid_list = [msg_obj.msg_uid for msg_obj in slice_instances]
+
+            if is_async:
+                send_message_by_mq.delay(msg_uid_list=msg_uid_list)
+            else:
+                send_message_by_mq.run(msg_uid_list=msg_uid_list)
+
+    def post(self, request, *args, **kwargs):
+        """ Push app message according to `userid`
+        request.data:
+            app_token: string, app_token attribute of AppTokenPlatformModel instance
+            msg_type： int, look up `QyWXMessageTypeEnum` and `DingTalkMessageTypeEnum` etc.
+            msg_body_json: string, message body json
+            receiver_mobile: string, receiver's mobile to send message, eg: '13600000000,13500000001'
+            receiver_userid: string, receiver's userid to send message eg: '1602133682287,1635343667135'
+            is_async: bool, default is false, if async si true, use mq to send message
+        """
+        self.async_send_messages(data=request.data)
+        return Response(data=None, status=status.HTTP_200_OK)

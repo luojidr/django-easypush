@@ -24,4 +24,7 @@ urlpatterns = [
 
     re_path(r"^api/app/media/list$", view=views.ListAppMediaApi.as_view(), name="app_media_list"),
     re_path(r"^api/app/message/list$", view=views.ListAppMessageApi.as_view(), name="app_message_list"),
+
+    # Send app message
+    re_path(r"^api/app/message/send$", view=views.SendAppMessageRecordApi.as_view(), name="send_message"),
 ]

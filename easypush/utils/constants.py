@@ -107,7 +107,7 @@ class _MessageTypeEnumBase(EnumBase):
         return enum_list[0]
 
     @classmethod
-    def get_message_type_items(cls):
+    def get_items(cls):
         msg_type_result = {_enum.type: _enum.desc for _enum in cls.iterator()}
         return list(msg_type_result.items())
 

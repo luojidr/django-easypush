@@ -19,6 +19,18 @@ class QyMessage(PushApiBase):
         return self._client._corp_id
 
     def media_upload(self, media_type, filename=None, media_file=None):
+        """
+        :param media_type:
+        :param filename:
+        :param media_file:
+        :return:  {
+            'errcode': 0,
+            'errmsg': 'ok',
+            'type': 'image',
+            'media_id': '3b_4G7-rJKtKakG4B-iGpt4k4pdYEn5CIDHSL2v9ugTApXEQjZesJWhU31Ms4rDbV',
+            'created_at': '1667296036'
+        }
+        """
         params = dict(access_token=self._access_token, type=media_type)
 
         fp = open(filename, "rb") if filename else media_file

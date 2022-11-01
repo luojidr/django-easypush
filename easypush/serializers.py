@@ -1,4 +1,5 @@
 import time
+import json
 import logging
 import traceback
 from datetime import datetime, timedelta
@@ -6,7 +7,6 @@ from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.db import connections
 from django.db.utils import DEFAULT_DB_ALIAS
-from django.db.models import ObjectDoesNotExist
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from django_redis import get_redis_connection
@@ -14,7 +14,6 @@ from django_redis import get_redis_connection
 from . import models
 from .core.crypto import BaseCipher
 from .utils.snowflake import IdGenerator
-from .utils.exceptions import MessagePlatformError
 
 USER_MODEL = get_user_model()
 logger = logging.getLogger("django")
@@ -34,10 +33,6 @@ class AppTokenPlatformSerializer(serializers.ModelSerializer):
             instance = model_cls(**validated_data)
         else:
             instance.save_attributes(**validated_data)
-
-        # platform_type_mapping = dict(models.PLATFORM_CHOICES)
-        # if instance.platform_type not in platform_type_mapping:
-        #     raise MessagePlatformError("platform `%s` not exit" % instance.platform_type)
 
         instance.app_token = instance.encrypt_token()
         instance.expire_time = int(time.time()) + 20 * 365 * 24 * 60 * 60
@@ -72,82 +67,83 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         """ 暂未用到批量更新 """
 
     def create(self, validated_data):
-        """ 批量创建
+        """ Batch to create pushed messages
         @:param validated_data: list
         """
-        # 校验通过后, self.initial_data 与 validated_data 数据一致, 除了 validated_data 的每个字典中不包含 app_token
-        # mobile与jobCode
-        mobile_list = [item["receiver_mobile"] for item in validated_data]
-        user_query_kwargs = dict(phone_number__in=mobile_list, is_del=False)
-        user_queryset = CircleUsersModel.objects.filter(**user_query_kwargs).values("phone_number", "ding_job_code")
-        mobile_jobCode_dict = {user_item["phone_number"]: user_item["ding_job_code"] for user_item in user_queryset}
-
-        # 微应用信息
-        app_token_list = [item["app_token"] for item in self.initial_data]
-        plain_token_list = [DingAppTokenModel.decipher_text(_app_token) for _app_token in app_token_list]
-        agent_id_list = [int(_plain_token.split(":", 1)[0]) for _plain_token in plain_token_list]
-
-        app_query_kwargs = dict(agent_id__in=agent_id_list, is_del=False)
-        app_queryset = DingAppTokenModel.objects.filter(**app_query_kwargs).values("id", "agent_id")
-        app_agent_dict = {app_item["agent_id"]: app_item["id"] for app_item in app_queryset}
-
-        bulk_obj_list = []
-        model_cls = self.child.Meta.model
-
-        # 根据消息记录指纹过滤重复记录(钉钉消息记录) => 被优化了
-        # app_ids = list(app_agent_dict.values())
-        # mobile_list = list(mobile_jobCode_dict.keys())
-        # msg_log_fingerprint_set = self.child.get_sent_message_log_fingerprints(mobile_list, app_ids=app_ids)
-
-        # 钉钉消息主体指纹
-        ding_message_body_mapping = {}
-        ding_message_log_mapping = {}
-        cost_start_time = time.time()
-
-        for index, data in enumerate(self.initial_data):
-            message_data = dict(data, **validated_data[index])
-            new_validated_data = self.child.derive_value(message_data)
-
-            plain_token = DingAppTokenModel.decipher_text(new_validated_data["app_token"])
-            agent_id = int(plain_token.split(":", 1)[0])
-
-            # 消息主体指纹
-            app_id = app_agent_dict.get(agent_id)
-            new_validated_data["app_id"] = app_id
-            message_body_fingerprint = self.child.get_message_body_fingerprint(new_validated_data)
-
-            # _ding_msg_id = ding_message_results.get(message_body_fingerprint)
-            _ding_msg_id = self.child._get_app_id_by_msg_fingerprint(message_body_fingerprint)
-
-            if not _ding_msg_id:
-                ding_msg_obj = DingMessageModel.create_object(**new_validated_data)
-                _ding_msg_id = ding_msg_obj.id
-
-            # 暂存
-            ding_message_body_mapping[message_body_fingerprint] = _ding_msg_id
-
-            # 补充消息记录信息并过滤消息记录指纹
-            mobile = new_validated_data["receiver_mobile"]
-            new_validated_data.update(
-                ding_msg_id=_ding_msg_id,
-                receiver_job_code=mobile_jobCode_dict.get(mobile, ""),
-            )
-            log_fingerprint = self.child.get_fingerprint(validated_data=new_validated_data)
-
-            # if log_fingerprint not in msg_log_fingerprint_set:
-            if not self.child._has_msg_log_fingerprint(app_id, _ding_msg_id, mobile, log_fingerprint):
-                ding_message_log_mapping[(app_id, _ding_msg_id, mobile)] = log_fingerprint
-                bulk_obj_list.append(model_cls.create_object(force_insert=False, **new_validated_data))
-
-        instance_list = model_cls.objects.bulk_create(bulk_obj_list)
-
-        self.child.bulk_insert_fingerprint_to_redis(ding_message_body_mapping, ding_message_log_mapping)
-        return instance_list
+    #     # 校验通过后, self.initial_data 与 validated_data 数据一致, 除了 validated_data 的每个字典中不包含 app_token
+    #     # mobile与jobCode
+    #     mobile_list = [item["receiver_mobile"] for item in validated_data]
+    #     user_query_kwargs = dict(phone_number__in=mobile_list, is_del=False)
+    #     user_queryset = CircleUsersModel.objects.filter(**user_query_kwargs).values("phone_number", "ding_job_code")
+    #     mobile_jobCode_dict = {user_item["phone_number"]: user_item["ding_job_code"] for user_item in user_queryset}
+    #
+    #     # 微应用信息
+    #     app_token_list = [item["app_token"] for item in self.initial_data]
+    #     plain_token_list = [DingAppTokenModel.decipher_text(_app_token) for _app_token in app_token_list]
+    #     agent_id_list = [int(_plain_token.split(":", 1)[0]) for _plain_token in plain_token_list]
+    #
+    #     app_query_kwargs = dict(agent_id__in=agent_id_list, is_del=False)
+    #     app_queryset = DingAppTokenModel.objects.filter(**app_query_kwargs).values("id", "agent_id")
+    #     app_agent_dict = {app_item["agent_id"]: app_item["id"] for app_item in app_queryset}
+    #
+    #     bulk_obj_list = []
+    #     model_cls = self.child.Meta.model
+    #
+    #     # 根据消息记录指纹过滤重复记录(钉钉消息记录) => 被优化了
+    #     # app_ids = list(app_agent_dict.values())
+    #     # mobile_list = list(mobile_jobCode_dict.keys())
+    #     # msg_log_fingerprint_set = self.child.get_sent_message_log_fingerprints(mobile_list, app_ids=app_ids)
+    #
+    #     # 钉钉消息主体指纹
+    #     ding_message_body_mapping = {}
+    #     ding_message_log_mapping = {}
+    #     cost_start_time = time.time()
+    #
+    #     for index, data in enumerate(self.initial_data):
+    #         message_data = dict(data, **validated_data[index])
+    #         new_validated_data = self.child.derive_value(message_data)
+    #
+    #         plain_token = DingAppTokenModel.decipher_text(new_validated_data["app_token"])
+    #         agent_id = int(plain_token.split(":", 1)[0])
+    #
+    #         # 消息主体指纹
+    #         app_id = app_agent_dict.get(agent_id)
+    #         new_validated_data["app_id"] = app_id
+    #         message_body_fingerprint = self.child.get_message_body_fingerprint(new_validated_data)
+    #
+    #         # _ding_msg_id = ding_message_results.get(message_body_fingerprint)
+    #         _ding_msg_id = self.child._get_app_id_by_msg_fingerprint(message_body_fingerprint)
+    #
+    #         if not _ding_msg_id:
+    #             ding_msg_obj = DingMessageModel.create_object(**new_validated_data)
+    #             _ding_msg_id = ding_msg_obj.id
+    #
+    #         # 暂存
+    #         ding_message_body_mapping[message_body_fingerprint] = _ding_msg_id
+    #
+    #         # 补充消息记录信息并过滤消息记录指纹
+    #         mobile = new_validated_data["receiver_mobile"]
+    #         new_validated_data.update(
+    #             ding_msg_id=_ding_msg_id,
+    #             receiver_job_code=mobile_jobCode_dict.get(mobile, ""),
+    #         )
+    #         log_fingerprint = self.child.get_fingerprint(validated_data=new_validated_data)
+    #
+    #         # if log_fingerprint not in msg_log_fingerprint_set:
+    #         if not self.child._has_msg_log_fingerprint(app_id, _ding_msg_id, mobile, log_fingerprint):
+    #             ding_message_log_mapping[(app_id, _ding_msg_id, mobile)] = log_fingerprint
+    #             bulk_obj_list.append(model_cls.create_object(force_insert=False, **new_validated_data))
+    #
+    #     instance_list = model_cls.objects.bulk_create(bulk_obj_list)
+    #
+    #     self.child.bulk_insert_fingerprint_to_redis(ding_message_body_mapping, ding_message_log_mapping)
+    #     return instance_list
 
 
 class AppMsgPushRecordSerializer(serializers.ModelSerializer):
-    APP_MSG_BODY_KEY = "msg_body:%s"
-    APP_MSG_LOG_KEY = "msg_log:app_id:%s:msg_id:%s:mobile:%s"
+    DEFAULT_EXPIRE = 7 * 60 * 60
+    APP_MSG_FINGERPRINT_KEY = "app_id:{app_id}:msg_fingerprint:{msg_fingerprint}"
+    APP_LOG_FINGERPRINT_KEY = "app_id:{app_id}:msg_fingerprint:{msg_fingerprint}:mobile:{mobile}"
 
     app_token = serializers.SerializerMethodField(help_text="微应用token")
     receiver_mobile = serializers.CharField(max_length=50000, help_text="推送的手机号")
@@ -165,27 +161,24 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
     def get_app_token(self, obj):
         return obj.app.app_token
 
-    @property
-    def fingerprint_fields(self):
-        return ["msg_extra_json"]
-
     def get_fingerprint(self, validated_data=None):
-        """ 消息唯一性指纹 """
-        fingerprint_fields = self.fingerprint_fields
-        fingerprint_info = ":".join(["{%s}" % _field for _field in fingerprint_fields])
+        """ Unique message fingerprint """
+        fingerprint_fields = ["msg_body_json"]
 
-        if validated_data:
-            msg_kwargs = {k: validated_data.get(k, "") for k in fingerprint_fields}
-        else:
-            raise ValidationError("无法获取消息指纹")
+        if not validated_data:
+            raise ValidationError("Unable to get message fingerprint")
 
-        fingerprint_msg = fingerprint_info.format(**msg_kwargs)
-        md5 = BaseCipher.crypt_md5(fingerprint_msg)
+        fields = [key for key in validated_data if key in fingerprint_fields]
+        fingerprint_fmt = ":".join(["{%s}" % name for name in fields])
+        fingerprint_kwargs = {name: validated_data.get(name, "") for name in fields}
 
-        return md5
+        fingerprint_msg = fingerprint_fmt.format(**fingerprint_kwargs)
+        fingerprint = BaseCipher.crypt_md5(fingerprint_msg)
 
-    def query_raw_sql(self, sql, params=None, using=None, columns=()):
-        """ 原生sql查询 """
+        return fingerprint
+
+    def query_by_sql(self, sql, params=None, using=None, columns=()):
+        """ native SQL query """
         model_cls = self.Meta.model
         connection = connections[using or DEFAULT_DB_ALIAS]
         cursor = connection.cursor()
@@ -196,152 +189,107 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
         return mapping_result
 
-    def get_one_message_fingerprint(self, message_value):
-        """ 消息主体指纹 """
-        fields = models.AppMessageModel.fields()
-        required_fields = [name for name in self.fingerprint_fields if name in fields]
+    def _get_cache_from_redis(self, app_id, msg_fingerprint, mobile=None):
+        fp_kwargs = dict(app_id=app_id, msg_fingerprint=msg_fingerprint)
 
-        message_fingerprint_rule = ":".join(["{%s}" % col for col in required_fields])
-        message_fingerprint = message_fingerprint_rule.format(**message_value)
+        if mobile is not None:
+            fp_kwargs["mobile"] = mobile
+            key = self.APP_LOG_FINGERPRINT_KEY.format(**fp_kwargs)
+        else:
+            key = self.APP_MSG_FINGERPRINT_KEY.format(**fp_kwargs)
 
-        return BaseCipher.crypt_md5(message_fingerprint)
-
-    def get_message_fingerprints_mapping(self):
-        """ 钉钉消息体的指纹映射 """
-        msg_body_mappings = {}
-        msg_model_cls = models.AppMessageModel
-
-        exclude_fields = ("source_cn", "msg_type_cn", "ihcm_survey_id")
-        fields = msg_model_cls.fields(exclude=exclude_fields)
-        sql = "SELECT {columns} FROM {tb_name} " \
-                  "WHERE is_del=false".format(columns=",".join(fields), tb_name=msg_model_cls._meta.db_table)
-        msg_body_results = self.query_raw_sql(sql, using=None, columns=fields)
-
-        for msg_body_item in msg_body_results:
-            fingerprint = self.get_message_body_fingerprint(msg_body_item)
-            msg_body_mappings[fingerprint] = msg_body_item["id"]
-
-        return msg_body_mappings
-
-    def _get_app_id_by_fingerprint(self, msg_fingerprint):
         redis_conn = get_redis_connection()
-
-        key = self.APP_MSG_BODY_KEY % msg_fingerprint
-        app_msg_id = redis_conn.get(key)
-
-        return app_msg_id and int(app_msg_id) or None
+        return redis_conn.get(key)
 
     def clean_data(self, data):
         id_yield = IdGenerator(1, 1)
+        app_obj = data.get("app_obj")
+        msg_body_json = data.get("msg_body_json")
 
-        data.update(
-            is_read=False, is_success=False, sender="sys",
-            send_time=datetime.now(), msg_uid=id_yield.get_id(),
+        if not isinstance(msg_body_json, dict):
+            raise ValueError("request.data not include 'msg_body_json' field")
+
+        cleaned_data = dict(
+            app_id=app_obj.id, sender="sys", send_time=datetime.now(),
+            receiver_mobile=data.get("receiver_mobile", ""),
+            receiver_userid=data.get("receiver_userid", ""),
+            is_read=False, is_success=False, msg_uid=id_yield.get_id(),
+            msg_type=data.get("msg_type"), platform_type=app_obj.platform_type,
+            msg_body_json=json.dumps(msg_body_json, sort_keys=True),
         )
 
-        return data
+        return cleaned_data
 
-    def get_sent_log_fingerprints(self, mobile_list=None, app_ids=None, is_raw=False):
-        """ 已发送的消息的指纹,用于过滤目的(最近30个月)
-            达到快速过滤: 布隆过滤
+    def get_fingerprints_history(self, days=30, is_raw_sql=False):
+        """ Used for filtering to obtain the fingerprint of messages sent in the last 30 days.
+            If rapid filtration is achieved: Bloom filtration
 
-        :param mobile_list, 手机号列表
-        :param app_ids, 微应用列表
-        :param is_raw, 是否使用原生sql查询
+        :param days: int
+        :param is_raw_sql: bool, Whether to use native sql query
         """
-        validated_data_list = []
-        app_ids = app_ids or []
-        mobile_list = mobile_list or []
-        start_time = time.time()
-
+        fingerprint_mapping = {}
         model_cls = self.Meta.model
-        model_fields = model_cls.fields()
-        fingerprint_fields = self.fingerprint_fields
 
-        # 钉钉消息体和关联微应用
-        start_ts002 = time.time()
-        msg_fields = models.AppMessageModel.fields(exclude=("source_cn", "msg_type_cn", "ihcm_survey_id"))
+        # Message body and related applications
+        msg_fields = ["id", "app_id", "msg_body_json"]
+        log_fields = ["id", "app_msg_id", "receiver_mobile"]
 
-        if not is_raw:
-            orm_query = dict(is_del=False)
-            app_ids and orm_query.update(app_id__in=app_ids)
-            msg_queryset = models.AppMessageModel.objects.filter(**orm_query).values(*msg_fields)
-            msg_mapping_dict = {msg_item["id"]: msg_item for msg_item in msg_queryset}
+        if not is_raw_sql:
+            msg_queryset = models.AppMessageModel.objects.filter(is_del=False).values(*msg_fields)
+            msg_mappings = {msg_item["id"]: msg_item for msg_item in msg_queryset}
         else:
             sql_where = "where is_del=false "
-            if app_ids:
-                sql_where += " and app_id in (%s)" % ",".join([str(_id) for _id in app_ids])
+            msg_sql = "SELECT %s FROM %s ".format(", ".join(msg_fields), models.AppMessageModel._meta.db_table)
+            msg_queryset = self.query_by_sql(msg_sql + sql_where, columns=msg_fields)
+            msg_mappings = {msg_item["id"]: msg_item for msg_item in msg_queryset}
 
-            msg_sql = "SELECT {msg_columns} FROM circle_ding_message_info ".format(msg_columns=", ".join(msg_fields))
-            msg_queryset = self.query_raw_sql(msg_sql + sql_where, columns=msg_fields)
-            msg_mapping_dict = {msg_item["id"]: msg_item for msg_item in msg_queryset}
+        # Filter the corresponding message record
+        app_msg_ids = list(msg_mappings.keys())
+        recent_sent_time = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
 
-        start_ts003 = time.time()
-        msg_cost_time = start_ts003 - start_ts002
-        # logger.info("get_sent_messages_fingerprint MsgInfo cost time: %s, is_raw: %s", msg_cost_time, is_raw)
-
-        # 筛选对应的消息记录
-        ding_msg_ids = list(msg_mapping_dict.keys())
-        latest_sent_time = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-
-        if not is_raw:
-            orm_query = dict(ding_msg_id__in=ding_msg_ids, send_time__gt=latest_sent_time)
-            mobile_list and orm_query.update(receiver_mobile__in=list(set(mobile_list)))
-            log_msg_queryset = model_cls.objects.filter(**orm_query).values("receiver_mobile", "ding_msg_id")
-            # logger.info("log_msg_queryset SQL:%s", log_msg_queryset.query)
+        if not is_raw_sql:
+            orm_query = dict(app_msg_id__in=app_msg_ids, send_time__gt=recent_sent_time)
+            log_queryset = model_cls.objects.filter(**orm_query).values(*log_fields)
         else:
-            sql_where = " where send_time >= '%s' " % latest_sent_time
-            sql_where += " ding_msg_id in (%s) " % ",".join([str(did) for did in ding_msg_ids])
-            if mobile_list:
-                sql_where += " receiver_mobile in (%s)".join(set(mobile_list))
+            sql_where = " where send_time >= '%s' " % recent_sent_time
+            sql_where += " app_msg_id in (%s) " % ",".join([str(did) for did in app_msg_ids])
 
-            log_msg_columns = ["receiver_mobile", "ding_msg_id"]
-            log_msg_sql = "SELECT {columns} FROM circle_ding_msg_push_log ".format(columns=",".join(log_msg_columns))
-            log_msg_queryset = self.query_raw_sql(log_msg_sql + sql_where, columns=log_msg_columns)
+            log_msg_sql = "SELECT %s FROM %s ".format(",".join(log_fields), model_cls._meta.db_table)
+            log_queryset = self.query_by_sql(log_msg_sql + sql_where, columns=log_fields)
 
-        for log_msg_item in log_msg_queryset:
-            ding_msg_id = log_msg_item["ding_msg_id"]
-            item = dict(ding_msg_id=ding_msg_id)
+        for log_items in log_queryset:
+            log_id = log_items["id"]
+            app_msg_id = log_items["app_msg_id"]
+            mobile = log_items["receiver_mobile"]
 
-            for field_name in fingerprint_fields:
-                if field_name not in model_fields:
-                    ding_msg_item = msg_mapping_dict.get(ding_msg_id) or {}
-                    item[field_name] = ding_msg_item.get(field_name, "")
-                else:
-                    item[field_name] = log_msg_item[field_name]
+            if app_msg_id in msg_mappings:
+                msg_items = msg_mappings[app_msg_id]
+                msg_fingerprint = self.get_fingerprint(validated_data=dict(zip(msg_fields, msg_items)))
 
-            validated_data_list.append(item)
+                fp_kwargs = dict(app_id=msg_items["app_id"], msg_fingerprint=msg_fingerprint, mobile=mobile)
+                fingerprint_mapping[self.APP_LOG_FINGERPRINT_KEY.format(**fp_kwargs)] = log_id
+                fingerprint_mapping[self.APP_MSG_FINGERPRINT_KEY.format(**fp_kwargs)] = app_msg_id
 
-        # logger.info("get_sent_messages_fingerprint MsgLog cost time: %s", time.time() - start_ts003)
-        # logger.info("get_sent_messages_fingerprint all cost time: %s", time.time() - start_time)
+        return fingerprint_mapping
 
-        return {self.get_fingerprint(validated_data=item): item for item in validated_data_list}
-
-    def _has_log_fingerprint(self, app_id, ding_msg_id, mobile, fingerprint):
-        redis_conn = get_redis_connection()
-
-        key = self.APP_MSG_LOG_KEY % (app_id, ding_msg_id, mobile)
-        old_fingerprint = redis_conn.get(key)
-
-        return old_fingerprint == fingerprint
-
-    def bulk_insert_fingerprint_to_redis(self, bulk_msg_mappings=None, bulk_log_mappings=None, timeout=15 * 60 * 60):
-        """ 批量插入Redis,使用 Lua 可极大提升性能
-
-        :param bulk_body_mappings: dict,
-            eg: {'804cac0dc22aff073fgy': 1234} => ｛fingerprint: ding_msg_id｝
-        :param bulk_log_mappings: dict,
-            eg： {(1, 2134, '13570921106'): '476743867646a97'} => {(app_id, ding_msg_id, mobile): fingerprint}
+    def batch_insert_fingerprint(self, msg_fingerprint_mapping=None, log_fingerprint_mapping=None, timeout=None):
+        """
+        :param msg_fingerprint_mapping: dict,
+        :param log_fingerprint_mapping: dict,
         :param timeout: int, expire time to redis key
 
-        # 使用 pipeline 优于单次设置过期时间，但是量大时依然很慢
+        Note that: Using pipeline is better than setting the expiration time for a single time,
+                   but it is still slow when the data volume is large
+
             with redis_conn.pipeline(transaction=False) as p:
                 for key, value in bulk_mappings.items():
                     # redis_conn.set(key, value, expire_time)
                     redis_conn.expire(key, expire_time)
 
-                p.execute()  # 批量执行
+                p.execute()  # batch execution
 
+        Redis-cli: redis-cli -h [ip] -p [port] -a [pwd] keys "key_*" | xargs -i redis-cli -h ip -p [port] -a [pwd] expire {} [seconds]
+               eg: redis-cli -h 127.0.0.1 -p 6481 -a 123456 keys "falconSing*" | xargs -i redis-cli -h 127.0.0.1 -p 6481 -a pxf12t expire {} 3600
         """
         redis_conn = get_redis_connection()
         expire_lua = """
@@ -349,71 +297,62 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
                 redis.call("EXPIRE", KEYS[i], ARGV[2]);
             end
         """
+        timeout = timeout or self.DEFAULT_EXPIRE
+        bulk_fingerprint_mapping = dict(msg_fingerprint_mapping or {}, **(log_fingerprint_mapping or {}))
 
-        bulk_body_mappings = bulk_body_mappings or {}
-        bulk_log_mappings = bulk_log_mappings or {}
+        if not bulk_fingerprint_mapping:
+            return
 
         try:
-            if not isinstance(bulk_body_mappings, dict) or not isinstance(bulk_log_mappings, dict):
-                raise ValueError("bulk_body_mappings or bulk_log_mappings not dict")
-
             cmd = redis_conn.register_script(expire_lua)
+            redis_conn.mset(bulk_fingerprint_mapping)
 
-            if bulk_body_mappings:
-                bulk_body_mappings = {self.APP_MSG_BODY_KEY % body_fp: value for body_fp, value in
-                                      bulk_body_mappings.items()}
-                redis_conn.mset(bulk_body_mappings)
-                cmd(keys=list(bulk_body_mappings.keys()), args=[len(bulk_body_mappings), timeout])
+            total_cnt = len(bulk_fingerprint_mapping)
+            cmd(keys=list(bulk_fingerprint_mapping.keys()), args=[total_cnt, timeout])
 
-            if bulk_log_mappings:
-                # {(app_id, ding_msg_id, mobile): fingerprint}
-                bulk_log_mappings = {self.APP_MSG_LOG_KEY % key: log_fp for key, log_fp in
-                                     bulk_log_mappings.items()}
-                redis_conn.mset(bulk_log_mappings)
-                cmd(keys=list(bulk_log_mappings.keys()), args=[len(bulk_log_mappings), timeout])
-
-            # logger.info("bulk_insert_fingerprint_to_redis(msg_body) ok: Cnt:%s", len(bulk_body_mappings))
-            # logger.info("bulk_insert_fingerprint_to_redis(msg_log) ok: Cnt:%s", len(bulk_body_mappings))
+            logger.info("bulk_insert_fingerprint_to_redis => set %s ok", total_cnt)
         except Exception as e:
-            traceback.format_exc()
+            logger.error(traceback.format_exc())
 
     def create(self, validated_data):
-        # app_token = validated_data.pop("app_token", None)  # app_token 只读字段,只能从 initial_data 中获取
+        # `app_token` field is read-only, Only from `self.initial_ Data`
         model_cls = self.Meta.model
         app_token = self.initial_data.get("app_token")
 
         if not app_token:
-            raise PermissionError("<app_token> 为空, 应用消息无法推送")
+            raise PermissionError("<app_token> is empty, App message cannot be pushed.")
 
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
-        # agent_id = app_obj.agent_id
+        app_id = app_obj.id
+        new_validated_data = self.clean_data(dict(validated_data, app_obj=app_obj, **self.initial_data))
 
-        message_data = dict(validated_data, app_id=app_obj.id, **self.initial_data)
-        new_validated_data = self.clean_data(message_data)
+        # Message body fingerprint mapping
+        message_fingerprint_mapping = {}
+        message_fingerprint = self.get_fingerprint(new_validated_data)
+        new_validated_data["fingerprint"] = message_fingerprint
 
-        # 消息主体指纹映射
-        message_body_mapping = {}
-        message_body_fingerprint = self.get_one_message_fingerprint(new_validated_data)
-        app_msg_id = self._get_app_id_by_fingerprint(msg_fingerprint=message_body_fingerprint)
+        cache_val = self._get_cache_from_redis(app_id, message_fingerprint)
+        app_msg_id = cache_val and int(cache_val) or None
+        fp_kwargs = dict(app_id=app_id, msg_fingerprint=message_fingerprint)
 
         if not app_msg_id:
             app_msg_obj = models.AppMessageModel.create_object(**new_validated_data)
             app_msg_id = app_msg_obj.id
-            message_body_mapping[message_body_fingerprint] = app_msg_id
+            message_fingerprint_mapping[self.APP_MSG_FINGERPRINT_KEY.format(**fp_kwargs)] = app_msg_id
 
-        # 消息推送指纹映射
-        message_log_mapping = {}
-        new_validated_data["app_msg_id"] = app_msg_id
-        log_fingerprint = self.get_fingerprint(validated_data=new_validated_data)
+        # Message Push Fingerprint Mapping
+        log_fingerprint_mapping = {}
+        mobile = new_validated_data["receiver_mobile"]
 
-        # if log_fingerprint not in msg_log_fingerprint_set:
-        if not self._has_msg_log_fingerprint(app_obj.id, ding_msg_id, receiver_mobile, log_fingerprint):
+        if not self._get_cache_from_redis(app_obj.id, message_fingerprint, mobile):
+            new_validated_data["app_msg_id"] = app_msg_id
             instance_list = model_cls.create_object(**new_validated_data)
-            ding_message_log_mapping[(app_obj.id, ding_msg_id, receiver_mobile)] = log_fingerprint
+            fp_kwargs["mobile"] = mobile
+            log_fingerprint_mapping[self.APP_LOG_FINGERPRINT_KEY.format(**fp_kwargs)] = instance_list.id
         else:
-            logger.info("%s.create() 钉钉消息已存在" % self.__class__.__name__)
+            logger.info("%s.create() App message already exists" % self.__class__.__name__)
             instance_list = []
 
-        self.bulk_insert_fingerprint_to_redis(ding_message_body_mapping, ding_message_log_mapping)
+        self.batch_insert_fingerprint(message_fingerprint_mapping, log_fingerprint_mapping)
         return instance_list
 

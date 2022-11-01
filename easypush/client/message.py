@@ -60,8 +60,8 @@ class AppMessageHandler(MessageBase):
             )
         elif client_name == AppPlatformEnum.QY_WEIXIN.type:
             std_data.update(
-                errcode=data["errcode"], errmsg=data["errmsg"],
-                message_id=data["msgid"],  data=dict(
+                errcode=data["errcode"], errmsg=data["errmsg"], task_id=data["msgid"],
+                data=dict(
                     invalidtag=data.get("invalidtag"), invaliduser=data.get("invaliduser"),
                     invalidparty=data.get("invalidparty"), response_code=data.get("response_code"),
                 )

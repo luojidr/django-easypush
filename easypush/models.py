@@ -12,10 +12,11 @@ from easypush.core.path_builder import PathBuilder
 
 default_storage = FileSystemStorage()
 PLATFORM_CHOICES = [(p_enum.type, p_enum.desc) for p_enum in AppPlatformEnum.iterator()]
+MSG_CHOICES = QyWXMessageTypeEnum.get_items() + DingTalkMessageTypeEnum.get_items()
 
 
 class AppTokenPlatformModel(BaseAbstractModel):
-    """ 应用信息(钉钉、企业微信、飞书等) """
+    """ Application info(ding_talk、qy_weixin、feishu etc.) """
 
     # from django.core.management.utils import get_random_secret_key
     TOKEN_KEY = "jvum7is)@ftae=iv"      # 固定值: 16位
@@ -95,26 +96,19 @@ class AppMediaStorageModel(BaseAbstractModel):
 
 
 class AppMessageModel(BaseAbstractModel):
-    MSG_CHOICES = QyWXMessageTypeEnum.get_message_type_items() + \
-                  DingTalkMessageTypeEnum.get_message_type_items()
-
-    app = models.ForeignKey(to=AppTokenPlatformModel, verbose_name="应用id", default=None, on_delete=models.CASCADE)
-    media = models.ForeignKey(to=AppMediaStorageModel, verbose_name="媒体id", default=None, on_delete=models.DO_NOTHING)
-    msg_title = models.CharField(verbose_name="消息标题", max_length=500, default="", blank=True)
-    msg_media = models.CharField(verbose_name="消息图片", max_length=500, default="", blank=True)
-    msg_type = models.SmallIntegerField(verbose_name="消息类型", choices=MSG_CHOICES, default=0, blank=True)
-    msg_text = models.CharField(verbose_name="消息文本", max_length=1000, default="", blank=True)
-    msg_url = models.CharField(verbose_name="APP跳转链接", max_length=500, default="", blank=True)
-    msg_pc_url = models.CharField(verbose_name="PC跳转链接", max_length=500, default="", blank=True)
-    msg_extra_json = models.CharField(verbose_name="消息JSON数据", max_length=2000, default="", blank=True)
+    app = models.ForeignKey(to=AppTokenPlatformModel, verbose_name="应用id", default=None, on_delete=models.DO_NOTHING)
+    msg_type = models.CharField(verbose_name="消息类型", max_length=50, choices=MSG_CHOICES, default=0, blank=True)
+    msg_body_json = models.CharField(verbose_name="消息JSON数据", max_length=2000, default="", blank=True)
     platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
+    # fingerprint = models.CharField(verbose_name="消息指纹", max_length=100, default="", blank=True)
+    remark = models.CharField(verbose_name="说明", max_length=200, default="", blank=True)
 
     class Meta:
         db_table = "easypush_app_message_info"
 
 
 class AppMsgPushRecordModel(BaseAbstractModel):
-    """ 平台应用消息推送记录 """
+    """ Application pushed message log """
 
     # 建议不要使用外键, 推送记录没必要过分要求数据一致性和完整性
     # app_msg = models.ForeignKey(to=AppMessageModel, related_name="app_msg", default=None, on_delete=models.CASCADE)
@@ -133,6 +127,7 @@ class AppMsgPushRecordModel(BaseAbstractModel):
     msg_uid = models.CharField(verbose_name="消息唯一id", default="", max_length=100, unique=True, blank=True)
     is_recall = models.BooleanField(verbose_name="消息是否撤回", default=False, blank=True)
     recall_time = models.DateTimeField(verbose_name="撤回时间", default=DEFAULT_DATETIME, blank=True)
+    msg_type = models.CharField(verbose_name="消息类型", max_length=50, choices=MSG_CHOICES, default=0, blank=True)
     platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
 
     class Meta:

@@ -33,9 +33,10 @@ logger = logging.getLogger("django")
 
 
 @celery_app.task(ignore_result=True)
-def send_message_by_mq(msg_uid_list=None, force_db=True, **kwargs):
-    """ 消息统一发送任务
-        eg: msg_uid_list = ["2702976118339", "2702976118349"]
+def send_message_by_mq(msg_uid_list=None, **kwargs):
+    """ General task to send message by MQ
+    :param msg_uid_list: list, eg: ["2702976118339", "2702976118349"]
+    :return
     """
     start_time = time.time()
     msg_uid_list = msg_uid_list or []
@@ -65,7 +66,7 @@ def send_message_by_mq(msg_uid_list=None, force_db=True, **kwargs):
         if not app_msg:
             continue
 
-        body_kwargs = json.loads(app_msg.msg_extra_json)
+        body_kwargs = json.loads(app_msg.msg_body_json)
         group_msg_uid_list = [log_item["msg_uid"] for log_item in log_list]
         userid_list = [item["receiver_userid"] for item in log_list if item["receiver_userid"]]
 
@@ -73,9 +74,7 @@ def send_message_by_mq(msg_uid_list=None, force_db=True, **kwargs):
         ret = dict(errcode=500, errmsg="failed", task_id="", request_id="", data=None)
 
         try:
-            result = easypush.async_send(
-                msgtype=app_msg.msg_type, body_kwargs=body_kwargs, userid_list=userid_list
-            )
+            result = easypush.async_send(msgtype=app_msg.msg_type, body_kwargs=body_kwargs, userid_list=userid_list)
             task_id = result.pop("task_id", "")
             ret.update(task_id=str(task_id), **result)
         except Exception:
@@ -91,9 +90,7 @@ def send_message_by_mq(msg_uid_list=None, force_db=True, **kwargs):
                     traceback=ret["errmsg"], request_id=ret["request_id"]
                 )
                 update_kwargs["is_success"] and update_kwargs.update(receive_time=datetime.now())
-
-                if force_db:
-                    LogModel.objects.filter(msg_uid__in=group_msg_uid_list).update(**update_kwargs)
+                LogModel.objects.filter(msg_uid__in=group_msg_uid_list).update(**update_kwargs)
             except Exception:
                 traceback.format_exc()
 

@@ -77,7 +77,7 @@ class MarkdownBody(QyWXBodyBase):
 class NewsBody(QyWXBodyBase):
     _msgtype = 'news'
 
-    def __init__(self, title, description="", url=None, picurl=None, appid=None, pagepath=None, **kwargs):
+    def __init__(self, articles, **kwargs):
         """ 图文消息
         @:param title: string, 标题，不超过128个字节，超过会自动截断（支持id转译）
         @:param description: string, 描述，不超过512个字节，超过会自动截断（支持id转译）
@@ -87,23 +87,26 @@ class NewsBody(QyWXBodyBase):
         @:param pagepath: string, 点击消息卡片后的小程序页面，最长128字节，仅限本小程序内的页面。
                           appid和pagepath必须同时填写，填写后会忽略url字段
         """
-        articles = []
+        article_list = []
 
-        article = self._add_article(title, description, url, picurl, appid, pagepath)
-        articles.append(article)
-        super().__init__(articles=articles, **kwargs)
+        for item in articles:
+            article = self._add_article(**item)
+            article and article_list.append(article)
+
+        super().__init__(articles=article_list, **kwargs)
 
     def _add_article(self, title, description="", url=None, picurl=None, appid=None, pagepath=None):
-        return dict(
-            title=title, description=description,
-            url=url, picurl=picurl, appid=appid, pagepath=pagepath,
-        )
+        if title or description or url or picurl or appid or pagepath:
+            return dict(
+                title=title, description=description,
+                url=url, picurl=picurl, appid=appid, pagepath=pagepath,
+            )
 
 
 class MpNewsBody(QyWXBodyBase):
     _msgtype = 'mpnews'
 
-    def __init__(self, title, thumb_media_id, content, author="", content_source_url=None, digest=None, **kwargs):
+    def __init__(self, articles, **kwargs):
         """ 图文消息
         @:param title: string, 标题，不超过128个字节，超过会自动截断（支持id转译）
         @:param thumb_media_id: string, 图文消息缩略图的media_id, 可以通过素材管理接口获得。
@@ -113,17 +116,20 @@ class MpNewsBody(QyWXBodyBase):
         @:param content_source_url: string, 图文消息点击“阅读原文”之后的页面链接
         @:param digest: string, 图文消息的描述，不超过512个字节，超过会自动截断（支持id转译）
         """
-        articles = []
+        article_list = []
 
-        article = self._add_article(title, thumb_media_id, content, author, content_source_url, digest)
-        articles.append(article)
-        super().__init__(articles=articles, **kwargs)
+        for item in articles:
+            article = self._add_article(**item)
+            article and article_list.append(article)
+
+        super().__init__(articles=article_list, **kwargs)
 
     def _add_article(self, title, thumb_media_id, content, author="", content_source_url=None, digest=None):
-        return dict(
-            title=title, thumb_media_id=thumb_media_id, content=content,
-            author=author, content_source_url=content_source_url, digest=digest,
-        )
+        if title or thumb_media_id or content or author or content_source_url or digest:
+            return dict(
+                title=title, thumb_media_id=thumb_media_id, content=content,
+                author=author, content_source_url=content_source_url, digest=digest,
+            )
 
 
 class TextCardBody(QyWXBodyBase):

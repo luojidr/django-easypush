@@ -67,32 +67,33 @@ class QyWXMessageBodyParser(ParserBodyBase):
 
         return QyWXBody.TextCardBody(title, description, url, btntxt, **kwargs)
 
-    def get_news_body(self, title, description="", url="", picurl="", appid="", pagepath="", **kwargs):
+    def get_news_body(self, articles, **kwargs):
         self.check_msg_type(QyWXBody.NewsBody)
 
-        fields = [
-            ("title", 128, to_binary(title)),
-            ("description", 512, to_binary(description)),
-            ("url", 2048, to_binary(url)),
-            ("pagepath", 2048, to_binary(pagepath)),
-        ]
-        self._validate_field_length(fields=fields, body_name="NewsBody")
+        for article in articles:
+            fields = [
+                ("title", 128, to_binary(article["title"])),
+                ("description", 512, to_binary(article["description"])),
+                ("url", 2048, to_binary(article["url"])),
+                ("pagepath", 2048, to_binary(article["pagepath"])),
+            ]
+            self._validate_field_length(fields=fields, body_name="NewsBody")
 
-        return QyWXBody.NewsBody(title, description, url, picurl, appid, pagepath, **kwargs)
+        return QyWXBody.NewsBody(articles=articles, **kwargs)
 
-    def get_mpnews_body(self, title, thumb_media_id, content, author="",
-                        content_source_url=None, digest="", **kwargs):
+    def get_mpnews_body(self, articles,  **kwargs):
         self.check_msg_type(QyWXBody.MpNewsBody)
 
-        fields = [
-            ("title", 128, to_binary(title)),
-            ("content", 666, to_binary(content)),
-            ("author", 64, to_binary(author)),
-            ("digest", 512, to_binary(digest)),
-        ]
-        self._validate_field_length(fields=fields, body_name="MpNewsBody")
+        for article in articles:
+            fields = [
+                ("title", 128, to_binary(article["title"])),
+                ("content", 666, to_binary(article["content"])),
+                ("author", 64, to_binary(article["author"])),
+                ("digest", 512, to_binary(article["digest"])),
+            ]
+            self._validate_field_length(fields=fields, body_name="MpNewsBody")
 
-        return QyWXBody.MpNewsBody(title, thumb_media_id, content, author, content_source_url, digest, **kwargs)
+        return QyWXBody.MpNewsBody(articles=articles, **kwargs)
 
     def get_miniprogram_notice_body(self, appid, title, page="", description="",
                                     emphasis_first_item=False, content_item=None, **kwargs):

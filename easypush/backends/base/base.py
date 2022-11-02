@@ -90,10 +90,10 @@ class ClientMixin(PushApiBase):
         self._kwargs = dict(**kwargs)
         self.using = self._kwargs.get("using", DEFAULT_EASYPUSH_ALIAS)
 
-        self._corp_id = corp_id or self.default_config["corp_id"]
-        self._agent_id = agent_id or self.default_config["agent_id"]
-        self._app_key = app_key or self.default_config["app_key"]
-        self._app_secret = app_secret or self.default_config["app_secret"]
+        self._corp_id = corp_id or self.app_config["corp_id"]
+        self._agent_id = agent_id or self.app_config["agent_id"]
+        self._app_key = app_key or self.app_config["app_key"]
+        self._app_secret = app_secret or self.app_config["app_secret"]
 
     @property
     def filepath(self):
@@ -132,7 +132,7 @@ class ClientMixin(PushApiBase):
         raise NotImplementedError
 
     @property
-    def default_config(self):
+    def app_config(self):
         return dict(
             backend=config[self.using]["BACKEND"],
             corp_id=config[self.using]["CORP_ID"],

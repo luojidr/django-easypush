@@ -6,25 +6,36 @@ from .loader import BackendLoader
 from easypush.utils.constants import AppPlatformEnum
 from easypush.utils.exceptions import FuncInvokeError
 
+__all__ = ["AppMessageHandler"]
+
 
 class MessageBase:
     loader_cls = BackendLoader
 
-    def __init__(self, using=None):
-        self._conf = settings.EASYPUSH[using]
-        backend_engine = self._conf.get("BACKEND", None)
+    def __init__(self, using=None, **kwargs):
+        if kwargs:
+            name = kwargs.pop("backend")
+            self._conf = {
+                "BACKEND": "easypush.backends.%s.%sClient" % (name, name.title().replace("_", "")),
+                "CORP_ID": kwargs["corp_id"],
+                "AGENT_ID": kwargs["agent_id"],
+                "APP_KEY": kwargs["app_key"],
+                "APP_SECRET": kwargs["app_secret"],
+            }
+        else:
+            self._conf = settings.EASYPUSH[using]
 
+        backend_engine = self._conf.get("BACKEND", None)
         if backend_engine is None:
-            raise ImproperlyConfigured("Not find config for 'BACKEND' in settings.EASYPUSH[%s]" % backend_engine)
+            raise ImproperlyConfigured("Not find config for 'BACKEND' any settings.")
 
         backend_cls = self.loader_cls(backend_engine).load_backend_cls()
-        self._client = backend_cls(using=using)
+        self._client = backend_cls(using=using, **kwargs)
         setattr(self, "logger", self._client.logger)
 
     @property
     def backend(self):
-        backend = self._conf["BACKEND"]
-        return backend.rsplit(".", 2)[-2]
+        return self._client.client_name
 
     @property
     def agent_id(self):

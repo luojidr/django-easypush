@@ -22,7 +22,7 @@ from operator import itemgetter
 from itertools import groupby
 
 from . import get_celery_app
-from easypush import easypush
+from easypush.client import AppMessageHandler
 from easypush.models import (
     AppMessageModel as MsgModel,
     AppMsgPushRecordModel as LogModel
@@ -50,18 +50,19 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
 
     # Application of platform
     app_msg_ids = list({item["app_msg_id"] for item in log_queryset})
-    msg_queryset = MsgModel.objects.filter(id__in=app_msg_ids, is_del=False)
+    msg_queryset = MsgModel.objects.filter(id__in=app_msg_ids, is_del=False).select_related("app")
     msg_mapping_dict = {msg_obj.id: msg_obj for msg_obj in msg_queryset}
 
     # Send message group by application
     for app_msg_id, iterator in groupby(log_queryset, key=itemgetter("app_msg_id")):
         log_list = list(iterator)
-        app_msg = msg_mapping_dict.get(app_msg_id)
+        app_msg_obj = msg_mapping_dict.get(app_msg_id)
 
-        if not app_msg:
+        if not app_msg_obj:
             continue
 
-        body_kwargs = json.loads(app_msg.msg_body_json)
+        app_obj = app_msg_obj.app
+        body_kwargs = json.loads(app_msg_obj.msg_body_json)
         group_msg_uid_list = [log_item["msg_uid"] for log_item in log_list]
         required_msg_uid_list = [item["msg_uid"] for item in log_list if item["msg_uid"]]
         userid_list = [item["receiver_userid"] for item in log_list if item["receiver_userid"]]
@@ -70,14 +71,19 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
         ret = dict(errcode=500, errmsg="failed", task_id="", request_id="", data=None)
 
         try:
-            result = easypush.async_send(msgtype=app_msg.msg_type, body_kwargs=body_kwargs, userid_list=userid_list)
+            service = AppMessageHandler(
+                backend=app_obj.platform_type,
+                corp_id=app_obj.corp_id, agent_id=app_obj.agent_id,
+                app_key=app_obj.app_key, app_secret=app_obj.app_secret,
+            )
+            result = service.async_send(msgtype=app_msg_obj.msg_type, body_kwargs=body_kwargs, userid_list=userid_list)
             task_id = result.pop("task_id", "")
             ret.update(task_id=str(task_id), **result)
         except Exception:
             exc_msg = traceback.format_exc()
             ret.update(errmsg=exc_msg[-1000:])
         finally:
-            _log_args = (app_msg, len(log_list), time.time() - start_time)
+            _log_args = (app_msg_obj, len(log_list), time.time() - start_time)
             logger.info("send_message_by_mq => app_msg: %s, push_count: %s, Api Cost time:%.2fs", *_log_args)
 
             try:
@@ -91,7 +97,7 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
                 traceback.format_exc()
 
             log_msg = "msg_uid Cnt:%s, userid_list Cnt:%s, app_msg:%s, Cost time:%.2fs\nRet: %s\nMsg uid:%s"
-            log_args = (len(group_msg_uid_list), len(userid_list), app_msg, time.time() - start_time, ret)
+            log_args = (len(group_msg_uid_list), len(userid_list), app_msg_obj, time.time() - start_time, ret)
             logger.info("send_message_by_mq => " + log_msg, *log_args + (required_msg_uid_list, ))
 
 

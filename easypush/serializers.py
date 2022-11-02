@@ -77,21 +77,16 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         """
         PUSH_LOG_MODEL = self.child.Meta.model
         APP_MODEL = models.AppTokenPlatformModel
-        token_alias_list = [(item["app_token"], item["using"]) for item in self.initial_data]
+        token_list = [item["app_token"] for item in self.initial_data]
 
         # Current log records pk
         log_queryset = PUSH_LOG_MODEL.objects.order_by("-id").all()
         max_pushed_pk = log_queryset[0].id if log_queryset.count() > 0 else 1
 
         # Parse Application
-        agent_id_list = [APP_MODEL.get_agent_id_by_token(item[0]) for item in token_alias_list]
+        agent_id_list = [APP_MODEL.get_agent_id_by_token(token) for token in token_list]
         query_kw = dict(agent_id__in=list(set(agent_id_list)), is_del=False)
         app_mapping = {obj.agent_id: obj for obj in APP_MODEL.objects.filter(**query_kw).all()}
-
-        # Validate Backend
-        for i, token_alias in enumerate(token_alias_list):
-            agent_id = agent_id_list[i]
-            self.child.validate_backend(token_alias[1], app_obj=app_mapping.get(agent_id))
 
         bulk_obj_list = []
         fingerprint_mapping = {}  # Message body and log fingerprint mapping
@@ -158,22 +153,6 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
     def get_app_token(self, obj):
         return obj.app.app_token
-
-    def validate_backend(self, using, app_token=None, app_obj=None):
-        """ Whether the backend sending messages are configured consistently """
-        _push = backend_pushes[using]
-        if app_token:
-            app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
-        else:
-            app_obj = app_obj
-
-        if not app_obj:
-            raise InvalidTokenError("app_token is invalid")
-
-        platform_type = app_obj.platform_type
-
-        if not (_push.backend == platform_type and _push.agent_id == app_obj.agent_id):
-            raise BackendError("settings.EASYPUSH not match backend(used:%s)" % platform_type)
 
     def get_fingerprint(self, validated_data=None):
         """ Unique message fingerprint """
@@ -334,14 +313,11 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
         # `app_token` field is read-only, Only from `self.initial_ Data`
         model_cls = self.Meta.model
         app_token = self.initial_data.get("app_token")
-        using = self.initial_data.get("using", DEFAULT_EASYPUSH_ALIAS)
 
         if not app_token:
             raise PermissionError("<app_token> is empty, App message cannot be pushed.")
 
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
-        self.validate_backend(using, app_obj=app_obj)
-
         app_id = app_obj.id
         new_validated_data = self.clean_data(dict(validated_data, app_obj=app_obj, **self.initial_data))
         user_id = new_validated_data["receiver_userid"]

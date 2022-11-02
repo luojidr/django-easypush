@@ -192,7 +192,8 @@ class SendAppMessageRecordApi(GenericAPIView):
             msg_body_json: string, message body json
             receiver_mobile: string, receiver's mobile to send message, eg: '13600000000,13500000001'
             receiver_userid: string, receiver's userid to send message eg: '1602133682287,1635343667135'
-            is_async: bool, default is false, if async si true, use mq to send message
+            is_async: bool, default is false, if is_async is true, use mq to send message
+            using: string, default is `default` Which backend push to send
         """
         self.async_send_messages(data=request.data)
         return Response(data=None, status=status.HTTP_200_OK)

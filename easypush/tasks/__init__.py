@@ -18,7 +18,7 @@ def get_celery_app():
         _app = current_app
 
     if _app is None:
-        errmsg = "Parameter `celery_app` not allowed empty, you could app.set_current() after instantiating"
+        errmsg = "Celery instance is empty, you could app.set_current() after instantiating or `EASYPUSH_CELERY_APP`"
         raise CeleryAppNotFoundError(errmsg)
 
     _celery_app = _app

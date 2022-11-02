@@ -25,15 +25,15 @@ def import_string(module_path):
 
 
 class BackendLoader:
-    def __init__(self, push_backend=None):
+    def __init__(self, backend_engine=None):
         self.backend_cls = None
-        self._push_backend = push_backend
+        self._backend_engine = backend_engine
 
     def load_backend_cls(self):
-        if not self._push_backend:
+        if not self._backend_engine:
             raise BackendModuleError("EasyPush `BACKEND` is allowed empty.")
 
         if self.backend_cls is None:
-            self.backend_cls = import_string(module_path=self._push_backend)
+            self.backend_cls = import_string(module_path=self._backend_engine)
 
         return self.backend_cls

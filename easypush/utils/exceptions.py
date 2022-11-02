@@ -6,11 +6,19 @@ class FuncInvokeError(EasyPushError):
     pass
 
 
-class BackendModuleError(EasyPushError):
+class InvalidTokenError(EasyPushError):
+    pass
+
+
+class BackendError(EasyPushError):
+    pass
+
+
+class BackendModuleError(BackendError):
     """ backend module is empty. """
 
 
-class InvalidBackendConfigError(EasyPushError):
+class InvalidBackendConfigError(BackendError):
     pass
 
 

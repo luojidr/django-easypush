@@ -11,15 +11,24 @@ class MessageBase:
     loader_cls = BackendLoader
 
     def __init__(self, using=None):
-        conf = settings.EASYPUSH[using]
-        backend = conf.get("BACKEND", None)
+        self._conf = settings.EASYPUSH[using]
+        backend_engine = self._conf.get("BACKEND", None)
 
-        if backend is None:
-            raise ImproperlyConfigured("Not find config for 'BACKEND' in settings.EASYPUSH[%s]" % backend)
+        if backend_engine is None:
+            raise ImproperlyConfigured("Not find config for 'BACKEND' in settings.EASYPUSH[%s]" % backend_engine)
 
-        backend_cls = self.loader_cls(backend).load_backend_cls()
+        backend_cls = self.loader_cls(backend_engine).load_backend_cls()
         self._client = backend_cls(using=using)
         setattr(self, "logger", self._client.logger)
+
+    @property
+    def backend(self):
+        backend = self._conf["BACKEND"]
+        return backend.rsplit(".", 2)[-2]
+
+    @property
+    def agent_id(self):
+        return self._conf["AGENT_ID"]
 
 
 class AppMessageHandler(MessageBase):

@@ -47,7 +47,6 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
     log_query = dict(msg_uid__in=msg_uid_list)
     log_fields = ["msg_uid", "receiver_userid", "app_msg_id"]
     log_queryset = LogModel.objects.filter(**log_query).values(*log_fields)
-    logger.info("send_message_by_mq => log_queryset: %s, msg_uid_list:%s", len(log_queryset), msg_uid_list)
 
     # Application of platform
     app_msg_ids = list({item["app_msg_id"] for item in log_queryset})
@@ -59,15 +58,12 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
         log_list = list(iterator)
         app_msg = msg_mapping_dict.get(app_msg_id)
 
-        start_time2 = time.time()
-        _log_args = (app_msg_id, app_msg, len(log_list))
-        logger.info("send_message_by_mq => app_msg_id: %s, app_msg: %s, push_count: %s", *_log_args)
-
         if not app_msg:
             continue
 
         body_kwargs = json.loads(app_msg.msg_body_json)
         group_msg_uid_list = [log_item["msg_uid"] for log_item in log_list]
+        required_msg_uid_list = [item["msg_uid"] for item in log_list if item["msg_uid"]]
         userid_list = [item["receiver_userid"] for item in log_list if item["receiver_userid"]]
 
         # Standard result: {errcode:0, errmsg: "ok", task_id:"123", request_id: "456", data:{}}
@@ -81,8 +77,8 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
             exc_msg = traceback.format_exc()
             ret.update(errmsg=exc_msg[-1000:])
         finally:
-            cost_time3 = time.time() - start_time2
-            logger.info("send_message_by_mq => Api Cost time:%s", cost_time3)
+            _log_args = (app_msg, len(log_list), time.time() - start_time)
+            logger.info("send_message_by_mq => app_msg: %s, push_count: %s, Api Cost time:%.2fs", *_log_args)
 
             try:
                 update_kwargs = dict(
@@ -94,8 +90,8 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
             except Exception:
                 traceback.format_exc()
 
-            log_msg = "msg_uid cnt:%s, userid_list cnt:%s, app_msg:%s, Ret: %s, Cost time:%s"
-            log_args = (len(group_msg_uid_list), len(userid_list), app_msg, ret, time.time() - start_time)
-            logger.info("send_message_by_mq => " + log_msg, *log_args)
+            log_msg = "msg_uid Cnt:%s, userid_list Cnt:%s, app_msg:%s, Cost time:%.2fs\nRet: %s\nMsg uid:%s"
+            log_args = (len(group_msg_uid_list), len(userid_list), app_msg, time.time() - start_time, ret)
+            logger.info("send_message_by_mq => " + log_msg, *log_args + (required_msg_uid_list, ))
 
 

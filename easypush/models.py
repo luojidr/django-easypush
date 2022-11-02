@@ -37,7 +37,8 @@ class AppTokenPlatformModel(BaseAbstractModel):
         return "<Platform:%s agentId: %s>" % (self.platform_type, self.agent_id)
 
     def encrypt_token(self):
-        raw = "%s:%s:%s:%s:%s" % (self.agent_id, self.corp_id, self.app_key, self.app_secret, self.platform_type)
+        raw_text_fmt = "%s:%s:%s:%s:%s"  # agent_id:corp_id:app_key:app_secret:platform_type
+        raw = raw_text_fmt % (self.agent_id, self.corp_id, self.app_key, self.app_secret, self.platform_type)
         cipher_text = AESHelper(key=self.TOKEN_KEY).encrypt(raw=raw)
 
         return cipher_text
@@ -53,10 +54,16 @@ class AppTokenPlatformModel(BaseAbstractModel):
         return plain_text
 
     @classmethod
+    def get_agent_id_by_token(cls, app_token):
+        plain_token = cls.decipher_text(app_token)
+        agent_id = int(plain_token.split(":", 1)[0])
+
+        return agent_id
+
+    @classmethod
     def get_app_by_token(cls, app_token):
         try:
-            plain_token = cls.decipher_text(app_token)
-            agent_id = int(plain_token.split(":", 1)[0])
+            agent_id = cls.get_agent_id_by_token(app_token)
             app_obj = cls.objects.get(agent_id=agent_id)
 
             return app_obj

@@ -7,8 +7,6 @@ from django.views import View
 from django.views.static import serve
 from django.http.response import Http404
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.views import APIView
 from rest_framework import mixins, status
@@ -17,6 +15,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView, GenericAPIView
 
 from . import easypush
 from . import forms, models, serializers
+from .utils.decorators import exempt_view_csrf
 from easypush.tasks.task_send_message import send_message_by_mq
 
 logger = logging.getLogger("django")
@@ -46,7 +45,7 @@ class EditAppTokenPlatformApi(mixins.CreateModelMixin,
         return models.AppTokenPlatformModel.objects.get(agent_id=agent_id, platform_type=platform_type)
 
     def post(self, request, *args, **kwargs):
-        """ 添加或更新微应用 """
+        """ Create or Update micro application """
         agent_id = request.data["agent_id"]
         platform_type = self.request.data["platform_type"]
         app_obj = models.AppTokenPlatformModel.objects.filter(agent_id=agent_id, platform_type=platform_type).first()
@@ -56,12 +55,12 @@ class EditAppTokenPlatformApi(mixins.CreateModelMixin,
         return self.update(request, *args, **kwargs)
 
 
-@method_decorator(csrf_exempt, name="dispatch")
-class PreviewMediaFileApi(View):
+@exempt_view_csrf
+class PreviewMediaFileView(View):
     LOGIN_REQUIRED = False
 
     def get(self, request, *args, **kwargs):
-        """ 文件预览 """
+        """ Preview file """
         key_name = kwargs["key"]
         access_token = request.GET.get("access_token")
 
@@ -72,7 +71,7 @@ class PreviewMediaFileApi(View):
             return Http404()
 
         if not media_obj.is_share and access_token != media_obj.access_token:
-            raise PermissionDenied(403, "您没有权限访问")
+            raise PermissionDenied(403, "No permission tp preview")
 
         document_root, path = os.path.split(media_obj.media.path)
         return serve(request, path, document_root)
@@ -80,7 +79,7 @@ class PreviewMediaFileApi(View):
 
 class UploadAppMediaApi(APIView):
     def post(self, request, *args, **kwargs):
-        """ 上传消息媒体文件 """
+        """  Upload message media files """
         data = request.data
         app_token = data.pop("app_token")[0]
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)

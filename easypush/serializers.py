@@ -1,7 +1,6 @@
 import time
 import json
 import logging
-import threading
 import traceback
 from datetime import datetime, timedelta
 
@@ -19,7 +18,6 @@ from .utils.snowflake import IdGenerator
 
 USER_MODEL = get_user_model()
 logger = logging.getLogger("django")
-PK_LOCK = threading.RLock()  # Not distributed lock, PK maybe duplication to multi web server
 
 
 class AppTokenPlatformSerializer(serializers.ModelSerializer):
@@ -77,10 +75,6 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         APP_MODEL = models.AppTokenPlatformModel
         token_list = [item["app_token"] for item in self.initial_data]
 
-        # Current log records pk, maybe duplication to multi web server
-        log_queryset = PUSH_LOG_MODEL.objects.order_by("-id").all()
-        max_pushed_pk = log_queryset[0].id if log_queryset.count() > 0 else 1
-
         # Parse Application
         agent_id_list = [APP_MODEL.get_agent_id_by_token(token) for token in token_list]
         query_kw = dict(agent_id__in=list(set(agent_id_list)), is_del=False)
@@ -89,7 +83,7 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         bulk_obj_list = []
         fingerprint_mapping = {}  # Message body and log fingerprint mapping
 
-        # message into database
+        # Save message and log into database
         for index, init_data in enumerate(self.initial_data):
             valid_data = validated_data[index]
             app_obj = app_mapping[agent_id_list[index]]
@@ -116,13 +110,10 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
             has_log_fp_key = has_log_fp_key or self.child.get_cache_from_redis(key=log_fingerprint_key)
 
             if not has_log_fp_key:
-                with PK_LOCK:
-                    new_validated_data["app_msg_id"] = app_msg_id
-                    log_instance = PUSH_LOG_MODEL.create_object(force_insert=False, **new_validated_data)
-                    bulk_obj_list.append(log_instance)
-
-                    max_pushed_pk += 1
-                    fingerprint_mapping[log_fingerprint_key] = max_pushed_pk
+                new_validated_data["app_msg_id"] = app_msg_id
+                log_instance = PUSH_LOG_MODEL.create_object(force_insert=False, **new_validated_data)
+                fingerprint_mapping[log_fingerprint_key] = log_instance.msg_uid
+                bulk_obj_list.append(log_instance)
 
         instance_list = PUSH_LOG_MODEL.objects.bulk_create(bulk_obj_list)
         self.child.batch_insert_fingerprint(fingerprint_mapping)
@@ -336,7 +327,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
         if not self.get_cache_from_redis(key=log_fingerprint_key):
             new_validated_data["app_msg_id"] = app_msg_id
             instance_list = model_cls.create_object(**new_validated_data)
-            fingerprint_mapping[log_fingerprint_key] = instance_list.id
+            fingerprint_mapping[log_fingerprint_key] = instance_list.msg_uid
         else:
             logger.info("%s.create() App message already exist." % self.__class__.__name__)
             instance_list = []

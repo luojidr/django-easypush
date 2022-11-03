@@ -48,7 +48,7 @@ class MessageBase:
 
 
 class AppMessageHandler(MessageBase):
-    """ 应用消息 """
+    """ Application send handler """
     def upload_media(self, media_type, filename=None, media_file=None):
         return self._client.upload_media(media_type, filename=filename, media_file=media_file)
 

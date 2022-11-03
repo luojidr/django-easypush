@@ -9,7 +9,7 @@ from django.conf import settings
 
 def autodiscover_tasks(packages=None, related_name='tasks', task_prefix='task_'):
     """
-    :param packages: list of string, eg ['config.tasks', 'config.auto_tasks']
+    :param packages: callable or list of string, eg ['easypush', 'onepush.apps']
     :param related_name: find directory or package of task
     :param task_prefix, find detail task module
 
@@ -23,18 +23,14 @@ def autodiscover_tasks(packages=None, related_name='tasks', task_prefix='task_')
         (3): tasks for the other packages specified
     """
     all_task_list = []
-    project_name = settings.APP_NAME
+    task_warning_msg = "Autodiscover tasks --->>> task module path: %s"
 
-    if not os.getenv("DJANGO_SETTINGS_MODULE"):
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', Config.DJANGO_SETTINGS_MODULE)
-        logging.warning("autodiscover_dj_tasks --->>> config: [%s]", Config.DJANGO_SETTINGS_MODULE)
-
-    packages = packages() if callable(packages) else packages or ()
+    packages = packages() if callable(packages) else packages or (settings.APP_NAME, )
     packages_or_apps = list(packages) + settings.INSTALLED_APPS
 
-    for name in packages_or_apps:
-        is_app = name in settings.INSTALLED_APPS
-        package = importlib.import_module(name)
+    for app_name in packages_or_apps:
+        is_app = app_name in settings.INSTALLED_APPS
+        package = importlib.import_module(app_name)
 
         file_path = os.path.dirname(os.path.abspath(package.__file__))
         package_name = package.__package__
@@ -44,14 +40,20 @@ def autodiscover_tasks(packages=None, related_name='tasks', task_prefix='task_')
 
             if mod_name == package_name + "." + related_name:
                 path = pathlib.Path(file_path)
-                parent_parts_list = path.parent.parts
-                app_path_list = list(parent_parts_list[parent_parts_list.index(project_name) + 1:])
+                parent_parts_tuple = path.parent.parts
+                print(parent_parts_tuple)
+
+                if parent_parts_tuple.count(app_name) > 0:
+                    index = parent_parts_tuple.index(app_name)
+                else:
+                    index = len(parent_parts_tuple) - 1
+                app_path_list = list(parent_parts_tuple[index + 1:])
 
                 if not module_info.ispkg:
                     app_task_path = ".".join(app_path_list + [mod_name])
                     all_task_list.append(app_task_path)
 
-                    logging.warning("autodiscover_dj_tasks --->>> task path: %s", app_task_path)
+                    logging.warning(task_warning_msg, app_task_path)
                 else:
                     task_path = path / related_name
                     sub_mod_info_list = list(pkgutil.iter_modules([str(task_path)]))
@@ -62,7 +64,7 @@ def autodiscover_tasks(packages=None, related_name='tasks', task_prefix='task_')
 
                         app_task_path = ".".join(app_path_list + [mod_name, sub_mod_info.name])
                         all_task_list.append(app_task_path)
-                        logging.warning("autodiscover_dj_tasks --->>> task path: %s", app_task_path)
+                        logging.warning(task_warning_msg, app_task_path)
 
     logging.warning("===>>> Easypush autodiscover tasks are as below\n")
     return all_task_list

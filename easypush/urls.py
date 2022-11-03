@@ -19,7 +19,7 @@ urlpatterns = [
     # eg: /media/preview/23664tfhituj.png?access_token=645rjhfds3kj
     re_path(
         "^%s/preview/(?P<key>.*?)$" % settings.MEDIA_URL.strip("/"),
-        view=views.PreviewMediaFileApi.as_view(), name="media_preview"
+        view=views.PreviewMediaFileView.as_view(), name="media_preview"
     ),
 
     re_path(r"^api/app/media/list$", view=views.ListAppMediaApi.as_view(), name="app_media_list"),

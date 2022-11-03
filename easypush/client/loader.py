@@ -4,7 +4,7 @@ from easypush.utils.exceptions import BackendModuleError
 
 
 def import_string(module_path):
-    """ like "easypush.backends.ding_talk.DingTalkBackend" string
+    """ `module_path` like "easypush.backends.ding_talk.DingTalkBackend" string
 
     Import a module path and return the class designated by the
     last name in the path. Raise ImportError if the import failed.

@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .loader import BackendLoader
 from easypush.utils.constants import AppPlatformEnum
-from easypush.utils.exceptions import FuncInvokeError
+from easypush.utils.exceptions import FuncInvokeError, BackendError
 
 __all__ = ["AppMessageHandler"]
 
@@ -13,10 +13,15 @@ class MessageBase:
     loader_cls = BackendLoader
 
     def __init__(self, using=None, **kwargs):
-        if kwargs:
+        if using is None:
             name = kwargs.pop("backend")
+            backend = "easypush.backends.%s.%sClient" % (name, name.title().replace("_", ""))
+
+            if not any([name == e.type for e in AppPlatformEnum.iterator()]):
+                raise BackendError("`%s` Backend not exist." % backend)
+
             self._conf = {
-                "BACKEND": "easypush.backends.%s.%sClient" % (name, name.title().replace("_", "")),
+                "BACKEND": backend,
                 "CORP_ID": kwargs["corp_id"],
                 "AGENT_ID": kwargs["agent_id"],
                 "APP_KEY": kwargs["app_key"],

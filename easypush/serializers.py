@@ -13,15 +13,13 @@ from rest_framework.exceptions import ValidationError
 from django_redis import get_redis_connection
 
 from . import models
-from . import pushes as backend_pushes
 from .core.crypto import BaseCipher
 from .utils.snowflake import IdGenerator
-from .utils.settings import DEFAULT_EASYPUSH_ALIAS
-from .utils.exceptions import BackendError, InvalidTokenError
+
 
 USER_MODEL = get_user_model()
 logger = logging.getLogger("django")
-PK_LOCK = threading.RLock()  # PK maybe duplication to multi web server
+PK_LOCK = threading.RLock()  # Not distributed lock, PK maybe duplication to multi web server
 
 
 class AppTokenPlatformSerializer(serializers.ModelSerializer):
@@ -79,7 +77,7 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         APP_MODEL = models.AppTokenPlatformModel
         token_list = [item["app_token"] for item in self.initial_data]
 
-        # Current log records pk
+        # Current log records pk, maybe duplication to multi web server
         log_queryset = PUSH_LOG_MODEL.objects.order_by("-id").all()
         max_pushed_pk = log_queryset[0].id if log_queryset.count() > 0 else 1
 
@@ -95,9 +93,7 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
         for index, init_data in enumerate(self.initial_data):
             valid_data = validated_data[index]
             app_obj = app_mapping[agent_id_list[index]]
-
             new_validated_data = self.child.clean_data(dict(valid_data, app_obj=app_obj, **init_data))
-            userid = new_validated_data["receiver_userid"]
 
             # message body fingerprint
             app_id = app_obj.id
@@ -114,7 +110,7 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
                 fingerprint_mapping[msg_fingerprint_key] = app_msg_id
 
             # message log fingerprint key
-            fp_kwargs["userid"] = userid
+            fp_kwargs["userid"] = new_validated_data["receiver_userid"]
             log_fingerprint_key = self.child.APP_LOG_FINGERPRINT_KEY.format(**fp_kwargs)
             has_log_fp_key = fingerprint_mapping.get(log_fingerprint_key)
             has_log_fp_key = has_log_fp_key or self.child.get_cache_from_redis(key=log_fingerprint_key)
@@ -320,7 +316,6 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
         app_id = app_obj.id
         new_validated_data = self.clean_data(dict(validated_data, app_obj=app_obj, **self.initial_data))
-        user_id = new_validated_data["receiver_userid"]
 
         # Message body and log fingerprint mapping
         fingerprint_mapping = {}
@@ -335,7 +330,7 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
             app_msg_id = app_msg_obj.id
             fingerprint_mapping[msg_fingerprint_key] = app_msg_id
 
-        fp_kwargs["userid"] = user_id
+        fp_kwargs["userid"] = new_validated_data["receiver_userid"]
         log_fingerprint_key = self.APP_LOG_FINGERPRINT_KEY.format(**fp_kwargs)
 
         if not self.get_cache_from_redis(key=log_fingerprint_key):

@@ -13,10 +13,11 @@ class QyWeixinBase(ClientMixin):
     CLIENT_NAME = "qy_weixin"
     API_BASE_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
 
-    def __init__(self, **kwargs):
+    def __init__(self, msg_type=None,  **kwargs):
         super().__init__(**kwargs)
+        self._msg_type = msg_type
 
-        self._token_dict = {}
+        self._token_cache = {}
         self._message = QyMessage(client=self)
 
     def get_access_token(self):
@@ -34,23 +35,19 @@ class QyWeixinBase(ClientMixin):
 
     @property
     def access_token(self):
-        now_timestamp = datetime.now().timestamp()
-        token_timestamp = self._token_dict.get("timestamp", 0)
-        token_expires = self._token_dict.get("expires_in", 2 * 60 * 60)
+        timestamp = datetime.now().timestamp()
+        token_timestamp = self._token_cache.get("timestamp", 0)
+        token_expires = self._token_cache.get("expires_in", 2 * 60 * 60)
 
-        if now_timestamp - token_timestamp > token_expires or self._token_dict.get("errcode") != 0:
-            self._token_dict = self.get_access_token()
-            self._token_dict["timestamp"] = now_timestamp
+        if timestamp - token_timestamp > token_expires or self._token_cache.get("errcode") != 0:
+            self._token_cache = self.get_access_token()
+            self._token_cache["timestamp"] = timestamp
 
-        return self._token_dict["access_token"]
+        return self._token_cache["access_token"]
 
 
 class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
     """ 企业内部应用消息 """
-    def __init__(self, msg_type=None, **kwargs):
-        super().__init__(**kwargs)
-        self._msg_type = msg_type
-
     def upload_media(self, media_type, filename=None, media_file=None):
         assert media_type in QyWXMediaEnum.media_list(), "媒体文件类型(仅限: image, voice, file)错误!"
 
@@ -72,7 +69,7 @@ class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
         message_body = self.get_message_body(**body_kwargs)
         assert isinstance(message_body, MsgBodyBase), "Parameter `msg_body` must is a instance of MsgBodyBase"
 
-        return self._message.asyncsend_v2(
+        return self._message.send(
             message_body,
             agent_id=self._agent_id, touser=userid_list,
             toparty=dept_id_list, totag=()

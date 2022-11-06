@@ -146,19 +146,11 @@ CACHES = {
     },
 }
 
+APP_NAME = "easypush"
+
 # EASYPUSH
 EASYPUSH = {
-    "default": {
-        "BACKEND": "easypush.backends.qy_weixin.QyWeixinClient",
-        "CORP_ID": "ww4846c4bd94a6f0e7",
-        "AGENT_ID": 1000002,
-        "APP_KEY": "",
-        "APP_SECRET": "uhenzt1cy77UBXNEWiRr-e7jvxKfN_zZ-kb44OW2PMc",
+    "default": {},
 
-        # "BACKEND": "easypush.backends.ding_talk.DingTalkClient",
-        # "CORP_ID": "ding4e6401e79ad1dad8a39a90f97fcb1e09",
-        # "AGENT_ID": 1988606171,
-        # "APP_KEY": "dingroihmpxlgdgi3qyp",
-        # "APP_SECRET": "d8QkPEi9YqQl8W9cv_se_Cre417ZwHEXeo95iw62SD1QEJdMRUkzZQ96D4Yvycv3",
-    },
+
 }

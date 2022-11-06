@@ -1,6 +1,5 @@
 import os.path
 
-
 from dingtalk.model import message
 
 from easypush.backends.base.body import ParserBodyBase

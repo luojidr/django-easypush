@@ -88,6 +88,15 @@ class QyWXMediaEnum(_MediaEnumBase):
     VIDEO = ("video", 10 * 1024 * 1024, "VoiceBody", "视频")
 
 
+class FeishuMediaEnum(_MediaEnumBase):
+    _BODY_MODULE = "easypush.backends.feishu.api.body"
+
+    IMAGE = ("image", 10 * 1024 * 1024, "ImageBody", "图片")
+    FILE = ("file", 30 * 1024 * 1024, "FileBody", "普通文件")
+    VOICE = ("voice", 30 * 1024 * 1024, "VoiceBody", "语音")
+    VIDEO = ("video", 30 * 1024 * 1024, "VoiceBody", "视频")
+
+
 class _MessageTypeEnumBase(EnumBase):
     @property
     def type(self):
@@ -136,5 +145,39 @@ class QyWXMessageTypeEnum(_MessageTypeEnumBase):
     TEXT_CARD = ("textcard", "文本卡片消息")
     MINI_PROGRAM_NOTICE = ("miniprogram_notice", "小程序通知消息")
     TEMPLATE_CARD = ("template_card", "模板卡片消息")
+
+
+class FeishuMessageTypeEnum(_MessageTypeEnumBase):
+    TEXT = ("text", "文本消息")
+    POST = ("post", "富文本消息")
+    IMAGE = ("image", "图片消息")
+    AUDIO = ("audio", "语音消息")
+    MEDIA = ("media", "视频消息")
+    FILE = ("file", "文件消息")
+    INTERACTIVE = ("interactive", "消息卡片")
+    SHARE_CHAT = ("share_chat", "分享群名片")
+    SHARE_USER = ("share_user", "分享个人名片")
+    STICKER = ("sticker", "表情包")
+
+
+class FeishuTokenTypeEnum(EnumBase):
+    INTERNAL_APP = (1, "auth.v3.app_access_token.internal", "自建应用 app_access_token")
+    INTERNAL_TENANT = (2, "auth.v3.tenant_access_token.internal", "自建应用 tenant_access_token")
+    SHOP_APP = (3, "auth.v3.app_access_token", "商店应用 app_access_token")
+    SHOP_TENANT = (4, "auth.v3.tenant_access_token", "商店应用 tenant_access_token")
+
+    @property
+    def type(self):
+        return self.value[0]
+
+    @property
+    def endpoint(self):
+        return self.value[1]
+
+    @classmethod
+    def get_token_enum(cls, token_type):
+        for e in cls.iterator():
+            if token_type == e.type:
+                return e
 
 

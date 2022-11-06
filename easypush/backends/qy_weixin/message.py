@@ -1,12 +1,12 @@
 import os.path
 
-from easypush.backends.base.base import PushApiBase
+from easypush.backends.base.base import RequestApiBase
 from easypush.backends.base.body import MsgBodyBase
 from easypush.utils.util import to_text
 from easypush.utils import exceptions
 
 
-class QyMessage(PushApiBase):
+class QyMessage(RequestApiBase):
     def __init__(self, client=None):
         super().__init__()
 
@@ -54,7 +54,7 @@ class QyMessage(PushApiBase):
     def send_to_conversation(self, sender, cid, msg_body):
         """ 发送普通消息 """
 
-    def asyncsend_v2(self, msg_body, agent_id, touser=(), toparty=(), totag=()):
+    def send(self, msg_body, agent_id, touser=(), toparty=(), totag=()):
         """ 应用支持推送文本、图片、视频、文件、图文等类型
         @:param msg_body:
         @:param touser: 成员ID列表（消息接收者，多个接收者用‘|’分隔，最多支持1000个）

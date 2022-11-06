@@ -20,8 +20,9 @@ from easypush.utils.util import to_text
 class DingBase(ClientMixin):
     CLIENT_NAME = "ding_talk"
 
-    def __init__(self, **kwargs):
+    def __init__(self, msg_type=None, **kwargs):
         super().__init__(**kwargs)
+        self._msg_type = msg_type
 
         self._client = AppKeyClient(
             corp_id=self._corp_id,
@@ -36,10 +37,6 @@ class DingBase(ClientMixin):
 
 
 class DingTalkClient(DingBase, DingMessageBodyParser):
-    def __init__(self, msg_type=None, **kwargs):
-        super().__init__(**kwargs)
-        self._msg_type = msg_type
-
     def upload_media(self, media_type, filename=None, media_file=None):
         """ Upload Image, file, voice
         :param media_type: 媒体文件类型，分别有图片（image）、语音（voice）、普通文件(file)

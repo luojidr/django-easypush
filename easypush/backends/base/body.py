@@ -17,7 +17,7 @@ class MsgBodyBase:
         assert self._msgtype
         return {'msgtype': self._msgtype, self._msgtype: self._get_data()}
 
-    def _get_data(self):
+    def _get_data(self, ):
         ret = {}
         keys = [k for k in dir(self) if not k.startswith('_')]
 

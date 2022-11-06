@@ -1,4 +1,4 @@
-from .api import body as QyWXBody
+from .api import body as qy_body
 from easypush.utils import exceptions
 from easypush.utils.util import to_binary
 from easypush.utils.constants import QyWXMediaEnum
@@ -21,12 +21,12 @@ class QyWXMessageBodyParser(ParserBodyBase):
                 raise exceptions.ExceedContentMaxSizeError("QyWXBody.%s %s exceed %s length." % args)
 
     def get_text_body(self, content, **kwargs):
-        self.check_msg_type(QyWXBody.TextBody)
+        self.check_msg_type(qy_body.TextBody)
 
         fields = [("content", 2048, to_binary(content))]
         self._validate_field_length(fields=fields, body_name="TextBody")
 
-        return QyWXBody.TextBody(content=content, **kwargs)
+        return qy_body.TextBody(content=content, **kwargs)
 
     def get_media_body(self, media_id, **kwargs):
         media_enum = self.MESSAGE_MEDIA_ENUM.get_media_enum(self._msg_type)
@@ -36,7 +36,7 @@ class QyWXMessageBodyParser(ParserBodyBase):
         return body_cls(media_id=media_id, **kwargs)
 
     def get_video_body(self, media_id, title="", description="", **kwargs):
-        self.check_msg_type(QyWXBody.VideoBody)
+        self.check_msg_type(qy_body.VideoBody)
 
         fields = [
             ("title", 128, to_binary(title)),
@@ -44,18 +44,18 @@ class QyWXMessageBodyParser(ParserBodyBase):
         ]
         self._validate_field_length(fields=fields, body_name="VideoBody")
 
-        return QyWXBody.VideoBody(media_id, title, description, **kwargs)
+        return qy_body.VideoBody(media_id, title, description, **kwargs)
 
     def get_markdown_body(self, content, **kwargs):
-        self.check_msg_type(QyWXBody.MarkdownBody)
+        self.check_msg_type(qy_body.MarkdownBody)
 
         fields = [("content", 2048, to_binary(content))]
         self._validate_field_length(fields=fields, body_name="MarkdownBody")
 
-        return QyWXBody.MarkdownBody(content=content, **kwargs)
+        return qy_body.MarkdownBody(content=content, **kwargs)
 
     def get_textcard_body(self, title, description, url, btntxt="", **kwargs):
-        self.check_msg_type(QyWXBody.TextCardBody)
+        self.check_msg_type(qy_body.TextCardBody)
 
         fields = [
             ("title", 128, to_binary(title)),
@@ -65,10 +65,10 @@ class QyWXMessageBodyParser(ParserBodyBase):
         ]
         self._validate_field_length(fields=fields, body_name="TextCardBody")
 
-        return QyWXBody.TextCardBody(title, description, url, btntxt, **kwargs)
+        return qy_body.TextCardBody(title, description, url, btntxt, **kwargs)
 
     def get_news_body(self, articles, **kwargs):
-        self.check_msg_type(QyWXBody.NewsBody)
+        self.check_msg_type(qy_body.NewsBody)
 
         for article in articles:
             fields = [
@@ -79,10 +79,10 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ]
             self._validate_field_length(fields=fields, body_name="NewsBody")
 
-        return QyWXBody.NewsBody(articles=articles, **kwargs)
+        return qy_body.NewsBody(articles=articles, **kwargs)
 
     def get_mpnews_body(self, articles,  **kwargs):
-        self.check_msg_type(QyWXBody.MpNewsBody)
+        self.check_msg_type(qy_body.MpNewsBody)
 
         for article in articles:
             fields = [
@@ -93,12 +93,12 @@ class QyWXMessageBodyParser(ParserBodyBase):
             ]
             self._validate_field_length(fields=fields, body_name="MpNewsBody")
 
-        return QyWXBody.MpNewsBody(articles=articles, **kwargs)
+        return qy_body.MpNewsBody(articles=articles, **kwargs)
 
     def get_miniprogram_notice_body(self, appid, title, page="", description="",
                                     emphasis_first_item=False, content_item=None, **kwargs):
         content_item = content_item or []
-        self.check_msg_type(QyWXBody.MiniProgramBody)
+        self.check_msg_type(qy_body.MiniProgramBody)
 
         fields = [("title", 4, 12, title), ("description", 4, 12, description),]
         self._validate_field_length(fields=fields, body_name="MiniProgramBody")
@@ -114,11 +114,11 @@ class QyWXMessageBodyParser(ParserBodyBase):
             if len(value) > 30:
                 raise exceptions.ExceedContentMaxSizeError("QyWXBody.MiniProgramBody value exceed 30.")
 
-        return QyWXBody.MiniProgramBody(appid, title, page, description, emphasis_first_item, content_item, **kwargs)
+        return qy_body.MiniProgramBody(appid, title, page, description, emphasis_first_item, content_item, **kwargs)
 
     def get_template_card_body(self, card_type, **kwargs):
         cls_name = card_type.title().replace("_", "") + "Body"
-        card_type_body_cls = getattr(QyWXBody, cls_name, None)
+        card_type_body_cls = getattr(qy_body, cls_name, None)
 
         if card_type_body_cls is None:
             raise ModuleNotFoundError("`QyWXBody` module not find `%s` class" % cls_name)

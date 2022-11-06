@@ -14,7 +14,7 @@ from easypush.core.request.http_util import HttpUtil
 from easypush.core.request.multipart import MultiPartForm
 
 
-class PushApiBase:
+class RequestApiBase:
     API_BASE_URL = None
     log_cls = Logger
 
@@ -84,7 +84,7 @@ class PushApiBase:
         return self._logger
 
 
-class ClientMixin(PushApiBase):
+class ClientMixin(RequestApiBase):
     def __init__(self, corp_id="", agent_id=None, app_key=None, app_secret=None, **kwargs):
         super().__init__()
         self._kwargs = dict(**kwargs)

@@ -47,7 +47,8 @@ class HttpUtil:
         return result
 
     def __del__(self):
-        self._response.close()
+        if hasattr(self._response, "close"):
+            self._response.close()
 
     def add_headers(self, key=None, value=None, headers=None, **kwargs):
         self.headers.update(headers or {}, **kwargs)

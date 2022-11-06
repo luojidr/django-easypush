@@ -44,3 +44,7 @@ class ExceedContentMaxSizeError(EasyPushError):
 
 class CeleryAppNotFoundError(EasyPushError):
     pass
+
+
+class TokenError(EasyPushError):
+    pass

@@ -347,4 +347,5 @@ whoosh_index/
 static/
 deploy.sh
 fosun_circle_uwsgi.ini
+easypush_demo/.local.yml
 

@@ -37,10 +37,9 @@ class FeishuClient(FeishuBase, FeishuMessageBodyParser):
         message_body = self.get_message_body(**body_kwargs)
         assert isinstance(message_body, MsgBodyBase), "Parameter `msg_body` must is a instance of MsgBodyBase"
 
-        return self._message.send(
-            message_body.get_dict(),
-            receive_id=userid_list[0],
-        )
+        payload = message_body.get_dict()
+        # return self._message.send(payload, receive_id=userid_list[0])
+        raise NotImplementedError("Not Implemented")
 
     def recall(self, task_id):
         pass

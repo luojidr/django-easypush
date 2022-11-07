@@ -41,7 +41,7 @@ setup(
     url='https://github.com/luojidr/django-easypush',
     author='luojidr',
     author_email='luojidr@163.com',
-    description='集成钉钉、企业微信、飞书等企业内部应用的消息推送系统',
+    description='集成钉钉、企业微信企业内部应用的消息推送系统',
     install_requires=load_requirements("base.txt"),  # 所依赖的包
     python_requires=">=3.8",
 )

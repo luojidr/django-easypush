@@ -93,8 +93,8 @@ class AppMessageHandler(MessageBase):
             )
         elif client_name == AppPlatformEnum.FEISHU.type:
             std_data.update(
-                errcode=data["code"], errmsg=data["msg"],
-                task_id=data["data"].pop("message_id"), request_id=data.pop("data")
+                errcode=data.pop("code", -1), errmsg=data.pop("msg", "error"),
+                task_id=data.get("data", {}).get("message_id", ""), request_id="", data=data
             )
         else:
             std_data = data

@@ -9,8 +9,11 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -150,7 +153,27 @@ APP_NAME = "easypush"
 
 # EASYPUSH
 EASYPUSH = {
-    "default": {},
+    "default": {
+        "BACKEND": os.getenv("DING_TALK:BACKEND"),
+        "CORP_ID": os.getenv("DING_TALK:CORP_ID"),
+        "AGENT_ID": os.getenv("DING_TALK:AGENT_ID"),
+        "APP_KEY": os.getenv("DING_TALK:APP_KEY"),
+        "APP_SECRET": os.getenv("DING_TALK:APP_SECRET"),
+    },
 
+    "qy_weixin": {
+        "BACKEND": os.getenv("QY_WEIXIN:BACKEND"),
+        "CORP_ID": os.getenv("QY_WEIXIN:CORP_ID"),
+        "AGENT_ID": os.getenv("QY_WEIXIN:AGENT_ID"),
+        "APP_KEY": os.getenv("QY_WEIXIN:APP_KEY"),
+        "APP_SECRET": os.getenv("QY_WEIXIN:APP_SECRET"),
+    },
 
+    "feishu": {
+        "BACKEND": os.getenv("FEISHU:BACKEND"),
+        "CORP_ID": os.getenv("FEISHU:CORP_ID"),
+        "AGENT_ID": os.getenv("FEISHU:AGENT_ID"),
+        "APP_KEY": os.getenv("FEISHU:APP_KEY"),
+        "APP_SECRET": os.getenv("FEISHU:APP_SECRET"),
+    },
 }

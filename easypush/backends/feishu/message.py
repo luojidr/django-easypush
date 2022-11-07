@@ -20,15 +20,14 @@ class FeishuMessage(RequestApiBase):
             "Content-Type": "application/json; charset=utf-8",
         }
 
-    def send(self, msg_body, receive_id):
-        new_msg_body = msg_body[self._client.msgtype]
-        new_msg_body["msg_type"] = new_msg_body.pop("msgtype")
-        new_msg_body.update(receive_id=receive_id, uuid=str(uuid.uuid1()))
+    def send(self, payload, receive_id):
+        new_payload = payload[self._client.msgtype]
+        new_payload["msg_type"] = new_payload.pop("msgtype")
+        new_payload.update(receive_id=receive_id, uuid=str(uuid.uuid1()))
 
-        print(self._headers)
         return self._request(
             method="POST",
             endpoint="im.v1.messages",
-            headers=self._headers,
-            params=dict(receive_id_type="open_id"), data=new_msg_body,
+            headers=self._headers, ignore_error=True,
+            params=dict(receive_id_type="open_id"), data=new_payload,
         )

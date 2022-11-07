@@ -1,4 +1,6 @@
 from copy import copy
+
+import yaml
 from django.conf import settings
 
 DEFAULTS = {
@@ -17,7 +19,12 @@ DEFAULTS = {
 DEFAULT_EASYPUSH_ALIAS = 'default'
 
 
-class
+class ConfigYaml:
+    def __init__(self, filename):
+        self.filename = filename
+
+    def load(self, alias):
+        pass
 
 
 class Singleton(type, metaclass=object):

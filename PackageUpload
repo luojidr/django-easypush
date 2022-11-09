@@ -1,0 +1,80 @@
+
+### Pypi上传打包
+    （1）：先创建一个pypi账户 https://pypi.python.org/pypi （记得要激活邮箱）
+
+    （2）：在自己的【用户目录】下新建一个空白文件命名为.pypirc
+        [distutils]
+        index-servers=pypi
+
+        [pypi]
+        repository = https://upload.pypi.org/legacy/
+        username = <username>
+        password = <password>
+
+        注意： username 是你在pypi注册的用户名
+
+    （3）：在你的项目目录下创建一个setup.py文件：
+        from setuptools import setup, find_packages
+
+        setup(
+            name='django-easypush',
+            license='MIT',
+            version='1.0.0',
+            classifiers=[
+                "Programming Language :: Python :: 3",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+            ],
+            packages=find_packages(),
+            zip_safe=False,
+            include_package_data=True,
+            url='https://github.com/luojidr/django-easypush',
+            author='luoji',
+            author_email='luojidr@163.com',
+            description='集成钉钉、企业微信、飞书的应用消息，短信、邮件的消息推送系统',
+            install_requires=["django", "werkzeug"],  # 所依赖的包
+        )
+
+    （4）：安装打包工具
+        pip3 install whell
+        pip3 install twine
+
+    （5）：打包
+        python3 setup.py sdist
+		python3 setup.py bdist_wheel  # 建议使用
+
+        项目中会新增下面几个目录：
+![avatar](t_pkg/t_celery/image/A19B5BDB-E9D3-47ce-B045-2EE31170A2A3.png)
+
+    （6）：注册你的包(好像不用打包了)
+        你需要到PyPI注册并验证你的包，之后才能开始真正上传，注册的方式有以下几种。
+
+        a:使用命令python setup.py register，最简单但官网不推荐，因为使用的是HTTP未加密，有可能会被攻击人嗅探到你的密码。
+        b:通过PyPI网站提交表单完成注册验证。
+        c:安装 pip install twine 然后在通过命令 twine register dist/mypkg-1.0.0-xxxx.whl 完成注册。
+
+        #: python.exe setup.py register
+        running register
+        running check
+        Registering easy_push to https://upload.pypi.org/legacy/
+        Server response (410): Project pre-registration is no longer required or supported, upload your files instead.
+
+    打包之后检查: python3 -m twine check dist/*   # 如果rst文件格式不对，无法上传Pypi
+
+    （7）：上传： twine upload dist/* 或者直接打包并上传: python3 setup.pybdist_wheel upload
+![avatar](t_pkg/t_celery/image/DD801769-6105-4c6f-9680-91544B4F5900.png)
+
+    （8）：上传前的注意事项：
+        假设你的包已经开发完成，并且根目录必须要有一个setup.py。
+        最好有一个README.rst 用来描述你的轮子，虽然这不是必须的，但文档就像内裤，你最好还是要有的。
+        如果你需要打包代码文件夹以外的文件，比如版权信息等等，你还需要写一个 MANIFEST.in。
+        关于setup.py的补充说明
+        name 必须是唯一的，允许使用数字和字母，推荐使用中划线（-）而不是下划线（_），因为pip安装只支持中划线，比如pip install my-pkg，为了不给自己找麻烦请听话。
+        version推荐遵循语义化版本号规则，简单说就像这样：1.2.0
+        作者姓名和邮箱地址不一定要和你的PyPI账号一致。
+
+    （9）：更新： 修改版本号，删除 build, dist 目录重新打包上传
+
+
+    （10）：错误：
+        a：

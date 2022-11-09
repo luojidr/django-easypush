@@ -4,7 +4,19 @@
 
 |license| |wheel| |pyversion|
 
-:Version: 1.1.0
+.. |license| image:: https://img.shields.io/pypi/l/django-easypush.svg
+    :alt: MIT License
+    :target: https://opensource.org/licenses/MIT
+
+.. |wheel| image:: https://img.shields.io/pypi/wheel/django-easypush.svg
+    :alt: django-easypush can be installed via wheel
+    :target: http://pypi.python.org/pypi/django-easypush/
+
+.. |pyversion| image:: https://img.shields.io/pypi/pyversions/django-easypush.svg
+    :alt: Supported Python versions.
+    :target: http://pypi.python.org/pypi/django-easypush/
+
+:Version: 1.1.1
 :Web:
 :Download: http://pypi.python.org/pypi/django-easypush
 :Source: https://github.com/luojidr/django-easypush
@@ -66,21 +78,3 @@ You can install it by doing the following,::
 The last command must be executed as a privileged user if
 you are not currently using a virtualenv.
 
-.. |build-status| image:: https://secure.travis-ci.org/celery/django-celery-results.svg?branch=master
-    :alt: Build status
-    :target: https://travis-ci.org/celery/django-celery-results
-
-.. |coverage| image:: https://codecov.io/github/celery/django-celery-results/coverage.svg?branch=master
-    :target: https://codecov.io/github/celery/django-celery-results?branch=master
-
-.. |license| image:: https://img.shields.io/pypi/l/django-easypush.svg
-    :alt: MIT License
-    :target: https://opensource.org/licenses/MIT
-
-.. |wheel| image:: https://img.shields.io/pypi/wheel/django-easypush.svg
-    :alt: django-celery-results can be installed via wheel
-    :target: http://pypi.python.org/pypi/django-easypush/
-
-.. |pyversion| image:: https://img.shields.io/pypi/pyversions/django-easypush.svg
-    :alt: Supported Python versions.
-    :target: http://pypi.python.org/pypi/django-easypush/

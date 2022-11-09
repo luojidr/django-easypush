@@ -30,7 +30,7 @@ else:
 setup(
     name='django-easypush',
     license='MIT',
-    version='1.1.1',
+    version='1.1.2',
     maintainer="luojidr",
     maintainer_email='luojidr@163.com',
     classifiers=[

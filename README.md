@@ -7,7 +7,7 @@ Push messages with different backends for the Django framework.
 
 |          |               |   
 | ---------|:--------------| 
-| Version  |1.1.1           | 
+| Version  |1.1.2           | 
 | Web      |               |  
 | Download |<http://pypi.python.org/pypi/django-easypush>  |  
 | Source   |<https://github.com/luojidr/django-easypush>   | 

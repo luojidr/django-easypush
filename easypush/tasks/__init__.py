@@ -1,29 +1,32 @@
+import importlib
+
 from django.conf import settings
 from celery import current_app, current_task
 
 from easypush.utils.exceptions import CeleryAppNotFoundError
 
-_celery_app = None
+celery_app = None
 
 
 def get_celery_app():
-    global _celery_app
+    global celery_app
 
-    if _celery_app is not None:
-        return _celery_app
+    if celery_app is not None:
+        return celery_app
 
     try:
-        _app = settings.EASYPUSH_CELERY_APP
-    except AttributeError:
-        _app = current_app
+        app_path = settings.EASYPUSH_CELERY_APP
+        pkg_name, app_name = app_path.split(":", 1)
 
-    if _app is None:
-        errmsg = "Celery instance is empty, you could app.set_current() after instantiating or `EASYPUSH_CELERY_APP`"
+        module = importlib.import_module(pkg_name)
+        celery_app = getattr(module, app_name, current_app)
+    except (AttributeError, ValueError):
+        celery_app = current_app
+
+    if celery_app.conf.broker_url is None:
+        errmsg = "Celery instance is empty, recommended set `EASYPUSH_CELERY_APP`"
         raise CeleryAppNotFoundError(errmsg)
 
-    _celery_app = _app
-    return _app
+    return celery_app
 
-
-celery_app = get_celery_app()
 

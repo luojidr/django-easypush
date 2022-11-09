@@ -92,6 +92,10 @@ class QyMessage(RequestApiBase):
     def recall(self, msgid):
         """ 撤回应用消息
         :param msgid: string, 消息ID。从应用发送消息接口处获得
+        :return dict: eg, {
+            'errcode': 0,   # 返回码, 0撤回成功
+            'errmsg': 'ok'  # 对返回码的文本描述内容
+            }
         """
         params = dict(access_token=self._access_token)
         return self._request(

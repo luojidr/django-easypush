@@ -1,8 +1,15 @@
 import json
+import socket
+import ftplib
+import traceback
 import http.cookiejar
 import urllib.parse
+import urllib.error as error
 import urllib.request as urllib2
-from urllib.error import HTTPError
+
+errors = (error.URLError, error.HTTPError, error.ContentTooShortError) + \
+         (socket.gaierror, ) + \
+         ftplib.all_errors
 
 
 class IgnoreHttpErrorHandler(urllib2.HTTPDefaultErrorHandler):
@@ -11,7 +18,7 @@ class IgnoreHttpErrorHandler(urllib2.HTTPDefaultErrorHandler):
         return fp
 
 
-class HttpUtil:
+class HttpFactory:
     def __init__(self, url, params=None, headers=None, timeout=None, **kwargs):
         """ http request have a faster response time than `requests` package """
         self.url = url
@@ -110,7 +117,6 @@ class HttpUtil:
         request = urllib2.Request(url, data=data, headers=self.headers, method=method)
         try:
             self._response = urllib2.urlopen(request)
-        except Exception as e:
-            pass
-
+        except errors:
+            traceback.format_exc()
 

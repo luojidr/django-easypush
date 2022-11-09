@@ -108,7 +108,7 @@ class ContextBaseTask(Task):
 
         sig = inspect.signature(task_run)
         parameters = sig.parameters
-        task_to_backend = parameters.get(self.app.CELERY_TASK_TO_BACKEND)
+        task_to_backend = parameters.get(self.app.conf.CELERY_TASK_TO_BACKEND)
         to_backend = task_to_backend.default if task_to_backend else None
         to_backend = None if to_backend == "default" else to_backend
 

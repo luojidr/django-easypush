@@ -3,12 +3,12 @@ from __future__ import absolute_import
 import os
 import logging
 
-from celery import Celery
+from celery import Celery       # celery==5.0.5 support windows
 from celery import platforms
 from django.conf import settings
 
 from easypush.core.mq.context import ContextTask
-from easypush_demo.celeryconf import CeleryConfig
+from .celeryconf import CeleryConfig
 
 __all__ = ["app", "celery_app"]
 

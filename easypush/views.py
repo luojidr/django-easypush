@@ -186,12 +186,12 @@ class SendAppMessageRecordApi(GenericAPIView):
     def post(self, request, *args, **kwargs):
         """ Push app message according to `userid`
         request.data:
-            app_token: string, app_token attribute of AppTokenPlatformModel instance
-            msg_type： int, look up `QyWXMessageTypeEnum` and `DingTalkMessageTypeEnum` etc.
-            msg_body_json: string, message body json
-            receiver_mobile: string, receiver's mobile to send message, eg: '13600000000,13500000001'
-            receiver_userid: string, receiver's userid to send message eg: '1602133682287,1635343667135'
-            is_async: bool, default is false, if is_async is true, use mq to send message
+            app_token: string, must be present, app_token attribute of AppTokenPlatformModel instance
+            msg_type： int, must be present, look up `QyWXMessageTypeEnum` and `DingTalkMessageTypeEnum` etc.
+            msg_body_json: string, must be present, message body json
+            receiver_mobile: string, receiver's mobile to send, eg: '13600000000,13500000001'
+            receiver_userid: string, must be present, receiver's userid to send eg:'1602133682287,1635343667135'
+            is_async: bool, default is true, if is_async is true, use mq to send message
             using: string, default is `default` Which backend push to send
         """
         self.async_send_messages(data=request.data)

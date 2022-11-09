@@ -35,13 +35,13 @@ setup(
         "Framework :: Django :: 4.0",
         "Intended Audience :: Developers",
     ],
-    packages=find_packages(exclude=["*.demo"]),
+    packages=find_packages(),
     zip_safe=False,
     include_package_data=True,
     url='https://github.com/luojidr/django-easypush',
     author='luojidr',
     author_email='luojidr@163.com',
-    description='集成钉钉、企业微信企业内部应用的消息推送系统',
+    description='集成钉钉、企业微信的企业内部应用消息推送系统（支持MQ异步推送）',
     install_requires=load_requirements("base.txt"),  # 所依赖的包
     python_requires=">=3.8",
 )

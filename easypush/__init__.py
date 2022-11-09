@@ -1,14 +1,13 @@
-"""
-企业内部推送消息推送平台，目前支持钉钉、企业微信、短信、邮箱，飞书
-openapi.py 公共开放接口，继承上述所有平台开发
-"""
-
+""" Enterprise internal message push platform for Django """
 from asgiref.local import Local
 
 from django.conf import settings
 from easypush.client import AppMessageHandler
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.utils.exceptions import InvalidBackendConfigError
+
+__author__ = 'luojidr'
+__homepage__ = 'https://github.com/luojidr/django-easypush'
 
 
 class EasyPushHandler:

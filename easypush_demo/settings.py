@@ -83,11 +83,11 @@ WSGI_APPLICATION = 'easypush_demo.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'fosun_circle_dev',
-        'HOST': '127.0.0.1',
-        'PORT': 3306,
-        'USER': 'root',
-        'PASSWORD': 'root',
+        'NAME': os.getenv("MYSQL:DB_NAME"),
+        'HOST': os.getenv("MYSQL:HOST"),
+        'PORT': os.getenv("MYSQL:PORT"),
+        'USER': os.getenv("MYSQL:USER"),
+        'PASSWORD': os.getenv("MYSQL:PASSWORD"),
     }
 }
 
@@ -177,3 +177,5 @@ EASYPUSH = {
         "APP_SECRET": os.getenv("FEISHU:APP_SECRET"),
     },
 }
+
+EASYPUSH_CELERY_APP = "easypush_demo.celery_app:celery_app"

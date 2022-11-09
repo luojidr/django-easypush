@@ -73,7 +73,7 @@ class DingTalkClient(DingBase, DingMessageBodyParser):
 
         return result
 
-    def async_send(self, msgtype, body_kwargs, userid_list=(),
+    def send(self, msgtype, body_kwargs, userid_list=(),
                    dept_id_list=(), to_all_user=False, result_processor=None):
         """ 企业会话消息异步发送
         :param msgtype: 消息类型

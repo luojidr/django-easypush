@@ -23,12 +23,12 @@ class AppTokenPlatformModel(BaseAbstractModel):
 
     corp_id = models.CharField(verbose_name="企业corpId", max_length=100, db_index=True, default="")
     app_name = models.CharField(verbose_name="应用名称", max_length=100, default="")
-    agent_id = models.IntegerField(verbose_name="AppId", unique=True, default=0)
+    agent_id = models.IntegerField(verbose_name="AppId", default=0)
     app_key = models.CharField(verbose_name="应用 appKey", max_length=200, default="")
-    app_secret = models.CharField(verbose_name="应用 appSecret", max_length=500, default="")
+    app_secret = models.CharField(verbose_name="应用 appSecret", max_length=300, default="")
     app_token = models.CharField(verbose_name="外部调用的唯一Token", max_length=500, db_index=True, default="")
     expire_time = models.BigIntegerField(verbose_name="Token过期时间", default=0)
-    platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
+    platform_type = models.CharField(verbose_name="平台类型", max_length=50, choices=PLATFORM_CHOICES, default="")
 
     class Meta:
         db_table = "easypush_app_token_platform"
@@ -129,9 +129,9 @@ class AppMsgPushRecordModel(BaseAbstractModel):
     read_time = models.DateTimeField(verbose_name="接收人已读时间", default=DEFAULT_DATETIME, blank=True)
     is_success = models.BooleanField(verbose_name="推送是否成功", default=False, blank=True)
     traceback = models.CharField(verbose_name="推送异常", max_length=1200, default="", blank=True)
-    task_id = models.CharField(verbose_name="钉钉创建的异步发送任务ID", default="", max_length=100, db_index=True, blank=True)
-    request_id = models.CharField(verbose_name="钉钉推送的请求ID", max_length=100, default="", blank=True)
-    msg_uid = models.CharField(verbose_name="消息唯一id", default="", max_length=100, unique=True, blank=True)
+    task_id = models.CharField(verbose_name="钉钉创建的异步发送任务ID", default="", max_length=150, db_index=True, blank=True)
+    request_id = models.CharField(verbose_name="钉钉推送的请求ID", max_length=150, default="", blank=True)
+    msg_uid = models.CharField(verbose_name="消息唯一id", default="", max_length=150, unique=True, blank=True)
     is_recall = models.BooleanField(verbose_name="消息是否撤回", default=False, blank=True)
     recall_time = models.DateTimeField(verbose_name="撤回时间", default=DEFAULT_DATETIME, blank=True)
     msg_type = models.CharField(verbose_name="消息类型", max_length=50, choices=MSG_CHOICES, default=0, blank=True)

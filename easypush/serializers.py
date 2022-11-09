@@ -126,14 +126,15 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
     APP_LOG_FINGERPRINT_KEY = "app_id:{app_id}:msg_fingerprint:{msg_fingerprint}:userid:{userid}"
 
     app_token = serializers.SerializerMethodField(help_text="微应用token")
-    receiver_mobile = serializers.CharField(max_length=50000, help_text="推送的手机号")
+    receiver_mobile = serializers.CharField(max_length=50000, allow_blank=True, help_text="接受者 mobile")
+    receiver_userid = serializers.CharField(max_length=50000, help_text="接受者 userid")
 
     class Meta:
         model = models.AppMsgPushRecordModel
         fields = models.AppMsgPushRecordModel.fields() + ["app_token"]
         read_only_fields = [
-            "app_id", "msg_type_cn", "sender", "send_time", "receiver_userid", "receive_time", "is_read",
-            "read_time", "is_success", "traceback", "task_id", "request_id", "source_cn", "is_done"
+            "sender", "send_time", "receiver_userid", "receive_time", "is_read",
+            "read_time", "is_success", "traceback", "task_id", "request_id",
         ]
 
         list_serializer_class = ListAppMsgPushRecordSerializer

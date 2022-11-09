@@ -13,11 +13,12 @@ class QyWXMessageBodyParser(ParserBodyBase):
     def _validate_field_length(self, fields, body_name=None):
         """校验消息体字段长度 """
         for field in fields:
-            name = field[0]
-            max_size = field[1]
+            field_name = field[0]
+            max_field_size = field[1]
+            field_value = field[2]
 
-            if len(field[2]) > max_size:
-                args = (body_name, name, max_size)
+            if field_value is not None and len(field_value) > max_field_size:
+                args = (body_name, field_name, max_field_size)
                 raise exceptions.ExceedContentMaxSizeError("QyWXBody.%s %s exceed %s length." % args)
 
     def get_text_body(self, content, **kwargs):
@@ -73,9 +74,9 @@ class QyWXMessageBodyParser(ParserBodyBase):
         for article in articles:
             fields = [
                 ("title", 128, to_binary(article["title"])),
-                ("description", 512, to_binary(article["description"])),
-                ("url", 2048, to_binary(article["url"])),
-                ("pagepath", 2048, to_binary(article["pagepath"])),
+                ("description", 512, to_binary(article.get("description"))),
+                ("url", 2048, to_binary(article.get("url"))),
+                ("pagepath", 2048, to_binary(article.get("pagepath"))),
             ]
             self._validate_field_length(fields=fields, body_name="NewsBody")
 
@@ -88,8 +89,8 @@ class QyWXMessageBodyParser(ParserBodyBase):
             fields = [
                 ("title", 128, to_binary(article["title"])),
                 ("content", 666, to_binary(article["content"])),
-                ("author", 64, to_binary(article["author"])),
-                ("digest", 512, to_binary(article["digest"])),
+                ("author", 64, to_binary(article.get("author"))),
+                ("digest", 512, to_binary(article.get("digest"))),
             ]
             self._validate_field_length(fields=fields, body_name="MpNewsBody")
 

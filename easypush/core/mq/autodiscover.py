@@ -41,7 +41,6 @@ def autodiscover_tasks(packages=None, related_name='tasks', task_prefix='task_')
             if mod_name == package_name + "." + related_name:
                 path = pathlib.Path(file_path)
                 parent_parts_tuple = path.parent.parts
-                print(parent_parts_tuple)
 
                 if parent_parts_tuple.count(app_name) > 0:
                     index = parent_parts_tuple.index(app_name)

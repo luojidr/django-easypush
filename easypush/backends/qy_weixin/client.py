@@ -54,7 +54,7 @@ class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
         self._check_media_exist(filename, media_file)
         return self._message.media_upload(media_type, filename, media_file)
 
-    def async_send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), to_all_user=False):
+    def send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), to_all_user=False):
         """ 企业会话消息异步发送
         :param msgtype: 消息类型
         :param body_kwargs: dict, 不同消息体对应的参数
@@ -76,5 +76,5 @@ class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
         )
 
     def recall(self, task_id):
-        pass
+        return self._message.recall(msgid=task_id)
 

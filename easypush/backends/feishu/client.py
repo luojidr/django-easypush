@@ -32,7 +32,7 @@ class FeishuClient(FeishuBase, FeishuMessageBodyParser):
     def upload_media(self, media_type, filename=None, media_file=None):
         pass
 
-    def async_send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), to_all_user=False):
+    def send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), to_all_user=False):
         self._msg_type = msgtype
         message_body = self.get_message_body(**body_kwargs)
         assert isinstance(message_body, MsgBodyBase), "Parameter `msg_body` must is a instance of MsgBodyBase"

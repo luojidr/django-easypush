@@ -121,7 +121,10 @@ class ListAppMsgPushRecordSerializer(serializers.ListSerializer):
 
 
 class AppMsgPushRecordSerializer(serializers.ModelSerializer):
+    MAX_SIZE_TO_MQ = 100
+    MAX_BATCH_SIZE = 2000
     DEFAULT_EXPIRE = 7 * 60 * 60
+
     APP_MSG_FINGERPRINT_KEY = "app_id:{app_id}:msg_fingerprint:{msg_fingerprint}"
     APP_LOG_FINGERPRINT_KEY = "app_id:{app_id}:msg_fingerprint:{msg_fingerprint}:userid:{userid}"
 
@@ -141,6 +144,52 @@ class AppMsgPushRecordSerializer(serializers.ModelSerializer):
 
     def get_app_token(self, obj):
         return obj.app.app_token
+
+    @classmethod
+    def async_send_mq(cls, data, task_fun):
+        """ Asynchronously send messages : first save db, then send messages through mq
+
+        :param data: dict or list of dictionary
+        :param task_fun: decorator function of Celery.task
+        :return:
+        """
+        is_async = data.pop("is_async", True)
+
+        # First to save message into db
+        # Split `receiver_userid`, Determine whether to send in batch
+        message_body = dict(**data)
+        userid_list = [m.strip() for m in message_body.pop("receiver_userid", "").split(",") if m.strip()]
+
+        many = len(userid_list) > 1
+        max_batch_size = cls.MAX_BATCH_SIZE
+
+        if many:
+            if not userid_list:
+                raise ValueError("Parameter `receiver_userid` not allowed empty")
+
+            if len(userid_list) > max_batch_size:
+                raise ValidationError("The number of `userid` exceeds the maximum limit(max:%s)" % max_batch_size)
+
+            data_or_list = [dict(**message_body, receiver_userid=userid) for userid in userid_list]
+        else:
+            data_or_list = dict(message_body, receiver_userid=userid_list[0])
+
+        # many=True: support batch to create.
+        # If the create method(to batch creation) is not overridden in the `list_serializer_class` class
+        # only-used `serializer_class` class, and the create method will be called to create one by one,
+        # the efficiency is relatively low
+        serializer = cls(data=data_or_list, many=many)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        instance_list = instance if isinstance(instance, list) else [instance]
+
+        # Second to asynchronously push messages into MQ
+        for i in range(0, len(instance_list), max_batch_size):
+            slice_instances = instance_list[i: i + cls.MAX_SIZE_TO_MQ]
+            msg_uid_list = [msg_obj.msg_uid for msg_obj in slice_instances]
+
+            invoke_func = task_fun.delay if is_async else task_fun.run
+            invoke_func(msg_uid_list=msg_uid_list)
 
     def get_fingerprint(self, validated_data=None):
         """ Unique message fingerprint """

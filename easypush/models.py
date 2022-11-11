@@ -90,6 +90,7 @@ class AppMediaStorageModel(BaseAbstractModel):
     is_share = models.BooleanField("是否共享", default=False, blank=True)
     is_success = models.BooleanField("是否成功", default=False, blank=True)
     access_token = models.CharField("共享token", max_length=100, default="", blank=True)
+    expire_time = models.BigIntegerField(verbose_name="媒体过期时间", default=0)
 
     class Meta:
         db_table = "easypush_app_media_storage"

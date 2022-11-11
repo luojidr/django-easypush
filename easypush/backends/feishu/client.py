@@ -12,6 +12,7 @@ from easypush.backends.base.body import MsgBodyBase
 
 class FeishuBase(ClientMixin):
     CLIENT_NAME = "feishu"
+    MEDIA_EXPIRE_TIME = 1 * 24 * 60 * 60
     API_BASE_URL = "https://open.feishu.cn/open-apis/"
 
     def __init__(self, msg_type=None, token_type=None, **kwargs):

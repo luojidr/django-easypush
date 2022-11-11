@@ -2,18 +2,17 @@ import logging
 import os.path
 
 from django.conf import settings
-from django.db import transaction
 from django.views import View
 from django.views.static import serve
 from django.http.response import Http404
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 
 from rest_framework.views import APIView
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, RetrieveAPIView, GenericAPIView
 
-from . import easypush
+from . import pushes
 from . import forms, models, serializers
 from .utils.decorators import exempt_view_csrf
 from easypush.tasks.task_send_message import send_message_by_mq
@@ -83,27 +82,13 @@ class UploadAppMediaApi(APIView):
         data = request.data
         app_token = data.pop("app_token")[0]
         app_obj = models.AppTokenPlatformModel.get_app_by_token(app_token=app_token)
+        using = app_obj.platform_type
 
         media_type = data.pop("media_type")[0]  # QueryDict => [image], [file], [voice]
         media_data = dict(data, media_title=data.get("media_title", ""), media_type=media_type, app=app_obj.id)
-        form = forms.UploadAppMediaForm(media_data, files=request.FILES)
-        if form.is_valid():
-            with transaction.atomic():
-                media_obj = form.save()
-                file_obj = request.FILES["media"]
+        media_obj = forms.UploadAppMediaForm.create_media(media_data, files=request.FILES, using=using)
 
-                if settings.DEBUG:
-                    resp = dict(media_id="@debug_test")
-                else:
-                    resp = easypush.upload_media(media_type, media_file=file_obj)
-                logger.info("UploadMessageMediaApi.upload_media debug:%s, ret: %s", settings.DEBUG, resp)
-
-                media_obj.media_id = resp["media_id"]
-                media_obj.save()
-
-                return Response(data=media_obj.to_dict(exclude=("media",)), status=status.HTTP_200_OK)
-
-        return Response(data=form.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(data=media_obj.to_dict(exclude=("media",)), status=status.HTTP_200_OK)
 
 
 class ListAppMediaApi(ListAPIView):
@@ -129,59 +114,7 @@ class ListAppMessageApi(ListAPIView):
 
 
 class SendAppMessageRecordApi(GenericAPIView):
-    MAX_MSG_SIZE_TO_MQ = 100
-    MAX_MSG_BATCH_SIZE = 2000
     serializer_class = serializers.AppMsgPushRecordSerializer
-
-    def async_send_messages(self, data):
-        """ Asynchronously send messages : first save db, then send messages through mq
-
-        :param data: dict or list of dictionary
-        :return:
-        """
-        is_async = data.pop("is_async", True)
-
-        # First to save message into db
-        serializer = self.serializer_class(data=data)
-        serializer.is_valid(raise_exception=True)
-        message_body = dict(**data)
-
-        # Split `receiver_userid`, Determine whether to send in batch
-        receiver_userid = message_body.pop("receiver_userid", "")
-        userid_list = [m.strip() for m in receiver_userid.split(",") if m.strip()]
-
-        many = len(userid_list) > 1
-        max_batch_size = self.MAX_MSG_BATCH_SIZE
-
-        if many:
-            if not userid_list:
-                raise ValueError("Parameter `receiver_userid` not allowed empty")
-
-            if len(receiver_userid) > max_batch_size:
-                raise ValidationError("The number of `userid` exceeds the maximum limit(max:%s)" % max_batch_size)
-
-            data_or_list = [dict(**message_body, receiver_userid=userid) for userid in userid_list]
-        else:
-            data_or_list = dict(message_body, receiver_userid=receiver_userid)
-
-        # many=True: support batch to create.
-        # If the create method(to batch creation) is not overridden in the `list_serializer_class` class
-        # only-used `serializer_class` class, and the create method will be called to create one by one,
-        # the efficiency is relatively low
-        serializer = self.serializer_class(data=data_or_list, many=many)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
-        instance_list = instance if isinstance(instance, list) else [instance]
-
-        # Second to asynchronously push messages  into MQ
-        for i in range(0, len(instance_list), max_batch_size):
-            slice_instances = instance_list[i: i + self.MAX_MSG_SIZE_TO_MQ]
-            msg_uid_list = [msg_obj.msg_uid for msg_obj in slice_instances]
-
-            if is_async:
-                send_message_by_mq.delay(msg_uid_list=msg_uid_list)
-            else:
-                send_message_by_mq.run(msg_uid_list=msg_uid_list)
 
     def post(self, request, *args, **kwargs):
         """ Push app message according to `userid`
@@ -194,5 +127,5 @@ class SendAppMessageRecordApi(GenericAPIView):
             is_async: bool, default is true, if is_async is true, use mq to send message
             using: string, default is `default` Which backend push to send
         """
-        self.async_send_messages(data=request.data)
+        self.serializer_class.async_send_mq(data=request.data, task_fun=send_message_by_mq)
         return Response(data=None, status=status.HTTP_200_OK)

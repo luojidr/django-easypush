@@ -11,6 +11,7 @@ from easypush.utils.constants import QyWXMediaEnum
 
 class QyWeixinBase(ClientMixin):
     CLIENT_NAME = "qy_weixin"
+    MEDIA_EXPIRE_TIME = 3 * 24 * 60 * 60
     API_BASE_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
 
     def __init__(self, msg_type=None,  **kwargs):

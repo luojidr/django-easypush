@@ -1,8 +1,11 @@
 from bson import ObjectId
 from django import forms
+from django.core.exceptions import ValidationError
 
 from .core.crypto import BaseCipher
 from .models import AppMediaStorageModel
+
+from . import pushes
 
 
 class UploadAppMediaForm(forms.ModelForm):
@@ -23,4 +26,30 @@ class UploadAppMediaForm(forms.ModelForm):
         # 部分或全部字段引用模型的字段, 如果form中未显性声明为非必填, 则后续校验通不过，无法保存到数据库中
         self.errors.clear()
         return self.cleaned_data
+
+    @classmethod
+    def create_media(cls, data=None, files=None, **kwargs):
+        using = kwargs.pop("using")
+        service = pushes[using]
+
+        form = cls(data, files=files, **kwargs)
+
+        if form.is_valid():
+            media_obj = form.save()
+
+            media_file = files["media"]
+            media_file.seek(0)
+            resp = service.upload_media(data["media_type"], media_file=media_file)
+
+            if resp.get("errcode") != 0:
+                media_obj.delete()
+                raise ValidationError("Upload to %s media error:%s" % (using, resp.get("errmsg")))
+
+            media_obj.media_id = resp["media_id"]
+            media_obj.expire_time = service.get_expire_time(resp.get("created_at", 0))
+            media_obj.save()
+
+            return media_obj
+
+        raise ValidationError("create_media error:%s" % form.errors)
 

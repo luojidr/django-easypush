@@ -1,8 +1,8 @@
 import os.path
 import importlib
+from datetime import datetime
 
 from django.conf import settings
-from django.db import transaction
 from django.utils.datastructures import MultiValueDict
 from django.core.exceptions import ValidationError
 from django.core.exceptions import ObjectDoesNotExist
@@ -90,35 +90,33 @@ class AppMessageHandler(MessageBase):
 
         if auto_save:
             app_obj = self._get_app_object()
+            using = app_obj.platform_type
             forms = self._get_module_with_registered("forms")
 
             fp = open(filename, "rb")
-            fp.seek(0, os.SEEK_END)
-            size = fp.tell()
+            # print(fp.read())
+            # fp.seek(0, os.SEEK_END)
+            size = os.path.getsize(filename)
+            # fp.seek(0)
+            # print(fp.read())
 
             files = MultiValueDict()
             files["media"] = InMemoryUploadedFile(
-                fp, field_name="media", name=filename, content_type=None, size=size, charset=None
+                fp, field_name="media", name=filename,
+                content_type=None, size=size, charset=None
             )
             media_data = dict(media_title=os.path.basename(filename), media_type=media_type, app=app_obj.id, **files)
-            form = forms.UploadAppMediaForm(media_data, files=files)
 
             try:
-                if form.is_valid():
-                    media_ret = self._client.upload_media(media_type, filename=filename, media_file=media_file)
-
-                    with transaction.atomic():
-                        media_obj = form.save()
-                        media_obj.media_id = media_ret["media_id"]
-                        media_obj.save()
-
-                    return media_ret
+                media_obj = forms.UploadAppMediaForm.create_media(media_data, files=files, using=using)
+                return dict(
+                    errcode=0, errmsg="ok", media_id=media_obj.media_id,
+                    type=media_obj.media_type, created_at=int(datetime.now().timestamp())
+                )
             finally:
                 fp.close()
         else:
             return self._client.upload_media(media_type, filename=filename, media_file=media_file)
-
-        raise ValidationError("file save db error")
 
     def async_send(self, msgtype, body_kwargs, userid_list=(), dept_id_list=(), async_mode=False):
         async_mode = async_mode or self.async_mode
@@ -129,15 +127,13 @@ class AppMessageHandler(MessageBase):
             tasks = self._get_module_with_registered("tasks.task_send_message")
 
             data = dict(
-                app_token=app_obj.app_token, msg_type=msgtype, msg_body_json=body_kwargs,
-                receiver_userid=",".join(userid_list), using=self.using, receiver_mobile="",
+                app_token=app_obj.app_token, msg_type=msgtype, receiver_mobile="",
+                msg_body_json=body_kwargs, receiver_userid=",".join(userid_list),
             )
-            serializer = serializers.AppMsgPushRecordSerializer(data=data)
-            serializer.is_valid(raise_exception=True)
-            instance = serializer.save()
-
-            tasks.send_message_by_mq.delay(msg_uid_list=[instance.msg_uid])
-            return dict(self._get_result())
+            serializers.AppMsgPushRecordSerializer.async_send_mq(
+                data=data,  task_fun=tasks.send_message_by_mq
+            )
+            return dict(self._get_result(), errmsg="async mq")
 
         result = self._client.send(
             msgtype=msgtype, body_kwargs=body_kwargs,
@@ -188,6 +184,14 @@ class AppMessageHandler(MessageBase):
             std_data = data
 
         return std_data
+
+    def get_expire_time(self, timestamp):
+        """ media expiration """
+        if len(str(timestamp)) > 10:
+            # millisecond
+            timestamp = str(timestamp)[:10]
+
+        return int(timestamp) + self._client.MEDIA_EXPIRE_TIME
 
 
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
@@ -6,6 +7,7 @@ from easypush.utils.util import DEFAULT_DATETIME
 from easypush.utils.constants import AppPlatformEnum, QyWXMediaEnum
 from easypush.utils.constants import QyWXMessageTypeEnum
 from easypush.utils.constants import DingTalkMessageTypeEnum
+from easypush.utils.exceptions import InvalidExpirationError
 from easypush.core.db.base import BaseAbstractModel
 from easypush.core.crypto import AESHelper
 from easypush.core.path_builder import PathBuilder
@@ -20,6 +22,7 @@ class AppTokenPlatformModel(BaseAbstractModel):
 
     # from django.core.management.utils import get_random_secret_key
     TOKEN_KEY = "jvum7is)@ftae=iv"      # 固定值: 16位
+    DEFAULT_EXPIRE_DAYS = 20 * 365
 
     corp_id = models.CharField(verbose_name="企业corpId", max_length=100, db_index=True, default="")
     app_name = models.CharField(verbose_name="应用名称", max_length=100, default="")
@@ -27,7 +30,7 @@ class AppTokenPlatformModel(BaseAbstractModel):
     app_key = models.CharField(verbose_name="应用 appKey", max_length=200, default="")
     app_secret = models.CharField(verbose_name="应用 appSecret", max_length=300, default="")
     app_token = models.CharField(verbose_name="外部调用的唯一Token", max_length=500, db_index=True, default="")
-    expire_time = models.BigIntegerField(verbose_name="Token过期时间", default=0)
+    expire_time = models.DateTimeField(verbose_name="token过期时间", default=DEFAULT_DATETIME, blank=True)
     platform_type = models.CharField(verbose_name="平台类型", max_length=50, choices=PLATFORM_CHOICES, default="")
 
     class Meta:
@@ -66,6 +69,9 @@ class AppTokenPlatformModel(BaseAbstractModel):
             agent_id = cls.get_agent_id_by_token(app_token)
             app_obj = cls.objects.get(agent_id=agent_id)
 
+            if app_obj.expire_time < datetime.now():
+                raise InvalidExpirationError("`app_token` beyond expiration time")
+
             return app_obj
         except Exception:
             raise ObjectDoesNotExist("应用 app_token 不合法！")
@@ -90,7 +96,7 @@ class AppMediaStorageModel(BaseAbstractModel):
     is_share = models.BooleanField("是否共享", default=False, blank=True)
     is_success = models.BooleanField("是否成功", default=False, blank=True)
     access_token = models.CharField("共享token", max_length=100, default="", blank=True)
-    expire_time = models.BigIntegerField(verbose_name="媒体过期时间", default=0)
+    expire_time = models.DateTimeField(verbose_name="媒体过期时间", default=DEFAULT_DATETIME, blank=True)
 
     class Meta:
         db_table = "easypush_app_media_storage"
@@ -98,7 +104,11 @@ class AppMediaStorageModel(BaseAbstractModel):
     @classmethod
     def get_media_by_key(cls, key):
         try:
-            return cls.objects.get(key=key, is_del=False)
+            media_obj = cls.objects.get(key=key, is_del=False)
+            if media_obj.expire_time < datetime.now():
+                raise InvalidExpirationError("`app_token` beyond expiration time")
+
+            return media_obj
         except (ObjectDoesNotExist, MultipleObjectsReturned):
             pass
 
@@ -139,4 +149,4 @@ class AppMsgPushRecordModel(BaseAbstractModel):
     platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
 
     class Meta:
-        db_table = "easypush_app_msg_push_records"
+        db_table = "easypush_app_msg_push_log"

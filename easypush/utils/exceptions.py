@@ -48,3 +48,8 @@ class CeleryAppNotFoundError(EasyPushError):
 
 class TokenError(EasyPushError):
     pass
+
+
+class InvalidExpirationError(EasyPushError):
+    pass
+

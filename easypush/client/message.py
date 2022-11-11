@@ -75,13 +75,14 @@ class AppMessageHandler(MessageBase):
     """ Application send handler """
     def _get_app_object(self):
         models = self._get_module_with_registered("models")
-        app_obj = models.AppTokenPlatformModel.objects.filter(
+        app_model_cls = models.AppTokenPlatformModel
+        app_obj = app_model_cls.objects.filter(
             corp_id=self._conf["CORP_ID"], agent_id=self._conf["AGENT_ID"],
             app_key=self._conf["APP_KEY"], app_secret=self._conf["APP_SECRET"],
         ).first()
 
         if app_obj is None:
-            raise ObjectDoesNotExist("Not app token record in table")
+            raise ObjectDoesNotExist("No app token record in `%s` table" % app_model_cls._meta.db_table)
 
         return app_obj
 
@@ -191,7 +192,8 @@ class AppMessageHandler(MessageBase):
             # millisecond
             timestamp = str(timestamp)[:10]
 
-        return int(timestamp) + self._client.MEDIA_EXPIRE_TIME
+        timestamp = int(timestamp) + self._client.MEDIA_EXPIRE_TIME
+        return datetime.fromtimestamp(timestamp)
 
 
 

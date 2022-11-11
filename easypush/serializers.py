@@ -36,15 +36,13 @@ class AppTokenPlatformSerializer(serializers.ModelSerializer):
             instance.save_attributes(**validated_data)
 
         instance.app_token = instance.encrypt_token()
-        instance.expire_time = int(time.time()) + 20 * 365 * 24 * 60 * 60
+        instance.expire_time = datetime.now() + timedelta(days=self._meta.model.DEFAULT_EXPIRE_DAYS)
         instance.save()
 
         return instance
 
     def update(self, instance, validated_data):
         validated_data["app_token"] = instance.encrypt_token()
-        validated_data["expire_time"] = int(time.time()) + 20 * 365 * 24 * 60 * 60
-
         return super().update(instance, validated_data)
 
 

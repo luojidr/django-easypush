@@ -24,14 +24,14 @@ class AppTokenPlatformModel(BaseAbstractModel):
     TOKEN_KEY = "jvum7is)@ftae=iv"      # 固定值: 16位
     DEFAULT_EXPIRE_DAYS = 20 * 365
 
-    corp_id = models.CharField(verbose_name="企业corpId", max_length=100, db_index=True, default="")
-    app_name = models.CharField(verbose_name="应用名称", max_length=100, default="")
-    agent_id = models.IntegerField(verbose_name="AppId", default=0)
-    app_key = models.CharField(verbose_name="应用 appKey", max_length=200, default="")
-    app_secret = models.CharField(verbose_name="应用 appSecret", max_length=300, default="")
-    app_token = models.CharField(verbose_name="外部调用的唯一Token", max_length=500, db_index=True, default="")
+    corp_id = models.CharField(verbose_name="企业corpId", max_length=100, default="", blank=True)
+    app_name = models.CharField(verbose_name="应用名称", max_length=100, default="", blank=True)
+    agent_id = models.IntegerField(verbose_name="AppId", default=0, blank=True)
+    app_key = models.CharField(verbose_name="应用 appKey", max_length=200, default="", blank=True)
+    app_secret = models.CharField(verbose_name="应用 appSecret", max_length=300, default="", blank=True)
+    app_token = models.CharField(verbose_name="外部调用的唯一Token", max_length=500, default="", blank=True)
     expire_time = models.DateTimeField(verbose_name="token过期时间", default=DEFAULT_DATETIME, blank=True)
-    platform_type = models.CharField(verbose_name="平台类型", max_length=50, choices=PLATFORM_CHOICES, default="")
+    platform_type = models.CharField(verbose_name="平台类型", max_length=50, choices=PLATFORM_CHOICES, default="", blank=True)
 
     class Meta:
         db_table = "easypush_app_token_platform"

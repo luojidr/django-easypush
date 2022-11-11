@@ -36,7 +36,7 @@ class AppTokenPlatformSerializer(serializers.ModelSerializer):
             instance.save_attributes(**validated_data)
 
         instance.app_token = instance.encrypt_token()
-        instance.expire_time = datetime.now() + timedelta(days=self._meta.model.DEFAULT_EXPIRE_DAYS)
+        instance.expire_time = datetime.now() + timedelta(days=model_cls.DEFAULT_EXPIRE_DAYS)
         instance.save()
 
         return instance

@@ -1,5 +1,4 @@
 import typing
-import os.path
 from datetime import datetime
 
 from .message import QyMessage
@@ -36,6 +35,7 @@ class QyWeixinBase(ClientMixin):
 
     @property
     def access_token(self):
+        """ Could use redis reduce request token """
         timestamp = datetime.now().timestamp()
         token_timestamp = self._token_cache.get("timestamp", 0)
         token_expires = self._token_cache.get("expires_in", 2 * 60 * 60)
@@ -43,6 +43,7 @@ class QyWeixinBase(ClientMixin):
         if timestamp - token_timestamp > token_expires or self._token_cache.get("errcode") != 0:
             self._token_cache = self.get_access_token()
             self._token_cache["timestamp"] = timestamp
+            self.logger.info("[%s] access_token: %s" % (self.__class__.__name__, self._token_cache["access_token"]))
 
         return self._token_cache["access_token"]
 
@@ -70,7 +71,7 @@ class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):
         message_body = self.get_message_body(**body_kwargs)
         assert isinstance(message_body, MsgBodyBase), "Parameter `msg_body` must is a instance of MsgBodyBase"
 
-        return self._message.send(
+        return self._message.send_message(
             message_body,
             agent_id=self._agent_id, touser=userid_list,
             toparty=dept_id_list, totag=()

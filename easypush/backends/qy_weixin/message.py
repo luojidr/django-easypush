@@ -54,7 +54,7 @@ class QyMessage(RequestApiBase):
     def send_to_conversation(self, sender, cid, msg_body):
         """ 发送普通消息 """
 
-    def send(self, msg_body, agent_id, touser=(), toparty=(), totag=()):
+    def send_message(self, msg_body, agent_id, touser=(), toparty=(), totag=()):
         """ 应用支持推送文本、图片、视频、文件、图文等类型
         @:param msg_body:
         @:param touser: 成员ID列表（消息接收者，多个接收者用‘|’分隔，最多支持1000个）
@@ -74,10 +74,8 @@ class QyMessage(RequestApiBase):
             msg_body = msg_body.get_dict()
 
         new_msg_body = msg_body[self._client.msgtype]
-        new_msg_body.update(
-            agentid=agent_id, touser=touser,
-            toparty=toparty, totag=totag
-        )
+        new_msg_body.update(agentid=agent_id, touser=touser, toparty=toparty, totag=totag)
+
         return self._request(
             method="POST", endpoint="message.send",
             params=dict(access_token=self._access_token), data=new_msg_body,

@@ -124,6 +124,9 @@ class AppMessageModel(BaseAbstractModel):
     class Meta:
         db_table = "easypush_app_message_info"
 
+    def __str__(self):
+        return "Message<Id:%s %s %s>" % (self.id, self.msg_type, self.platform_type)
+
 
 class AppMsgPushRecordModel(BaseAbstractModel):
     """ Application pushed message log """

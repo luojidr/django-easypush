@@ -1,6 +1,6 @@
 import traceback
 
-from . import get_celery_app
+from easypush.core.mq.context import get_celery_app
 from easypush.serializers import AppMsgPushRecordSerializer
 
 celery_app = get_celery_app()

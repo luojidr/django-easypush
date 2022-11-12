@@ -2,23 +2,26 @@ import re
 import time
 import logging
 import inspect
-
 import numbers
+import importlib
 from collections.abc import Mapping
 from datetime import timedelta, datetime
 
+from django.conf import settings
+
 from celery import Celery
+from celery import current_app, current_task
 from celery.app import backends
 from celery.app.task import Task
-from celery.states import SUCCESS
 from celery.app.amqp import AMQP, task_message
+from celery.states import SUCCESS
 from celery.utils.nodenames import anon_nodename
 from celery.utils.saferepr import saferepr
 from celery.utils.time import maybe_make_aware
-from celery.exceptions import BackendError
+from celery.exceptions import BackendError, CeleryError
 
 
-__all__ = ["ContextTask", "Amqp"]
+__all__ = ["ContextTask", "Amqp", "get_celery_app"]
 
 # Equivalent to `from fosun_circle.libs.log import task_logger`
 task_logger = logging.getLogger("celery.task")
@@ -27,7 +30,29 @@ worker_logger = logging.getLogger("celery.worker")
 DEFAULT_COUNTDOWN = 0.1
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_KEY = "MAX_RETRY_CNT"
+celery_app = None
 empty = object()
+
+
+def get_celery_app():
+    global celery_app
+
+    if celery_app is not None:
+        return celery_app
+
+    try:
+        app_path = settings.EASYPUSH_CELERY_APP
+        pkg_name, app_name = app_path.split(":", 1)
+
+        module = importlib.import_module(pkg_name)
+        celery_app = getattr(module, app_name, current_app)
+    except (AttributeError, ValueError):
+        celery_app = current_app
+
+    if celery_app.conf.broker_url is None:
+        raise CeleryError("Celery instance is empty, recommended set `EASYPUSH_CELERY_APP`")
+
+    return celery_app
 
 
 class Amqp(AMQP):

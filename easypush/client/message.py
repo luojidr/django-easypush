@@ -4,7 +4,6 @@ from datetime import datetime
 
 from django.conf import settings
 from django.utils.datastructures import MultiValueDict
-from django.core.exceptions import ValidationError
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.uploadedfile import InMemoryUploadedFile

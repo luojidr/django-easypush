@@ -21,12 +21,10 @@ from datetime import datetime
 from operator import itemgetter
 from itertools import groupby
 
-from . import get_celery_app
-from easypush.client import AppMessageHandler
-from easypush.models import (
-    AppMessageModel as MsgModel,
-    AppMsgPushRecordModel as LogModel
-)
+from easypush.core.mq.context import get_celery_app
+from easypush.client.utils import get_push_backend
+from easypush.models import AppMessageModel as MsgModel
+from easypush.models import AppMsgPushRecordModel as LogModel
 
 celery_app = get_celery_app()
 logger = logging.getLogger("django")
@@ -61,29 +59,25 @@ def send_message_by_mq(msg_uid_list=None, **kwargs):
         if not app_msg_obj:
             continue
 
-        app_obj = app_msg_obj.app
         body_kwargs = json.loads(app_msg_obj.msg_body_json)
         group_msg_uid_list = [log_item["msg_uid"] for log_item in log_list]
         required_msg_uid_list = [item["msg_uid"] for item in log_list if item["msg_uid"]]
         userid_list = [item["receiver_userid"] for item in log_list if item["receiver_userid"]]
 
+        api_start_time = time.time()
         # Standard result: {errcode:0, errmsg: "ok", task_id:"123", request_id: "456", data:{}}
         ret = dict(errcode=500, errmsg="failed", task_id="", request_id="", data=None)
 
         try:
-            service = AppMessageHandler(
-                backend=app_obj.platform_type,
-                corp_id=app_obj.corp_id, agent_id=app_obj.agent_id,
-                app_key=app_obj.app_key, app_secret=app_obj.app_secret,
-            )
-            result = service.async_send(msgtype=app_msg_obj.msg_type, body_kwargs=body_kwargs, userid_list=userid_list)
+            push = get_push_backend(instance=app_msg_obj.app)
+            result = push.async_send(msgtype=app_msg_obj.msg_type, body_kwargs=body_kwargs, userid_list=userid_list)
             task_id = result.pop("task_id", "")
             ret.update(task_id=str(task_id), **result)
         except Exception:
             exc_msg = traceback.format_exc()
             ret.update(errmsg=exc_msg[-1000:])
         finally:
-            _log_args = (app_msg_obj, len(log_list), time.time() - start_time)
+            _log_args = (app_msg_obj, len(log_list), time.time() - api_start_time)
             logger.info("send_message_by_mq => app_msg: %s, push_count: %s, Api Cost time:%.2fs", *_log_args)
 
             try:

@@ -143,7 +143,13 @@ class ClientMixin(RequestApiBase):
 
         raw_key = "{agent_id}:{corp_id}:{app_key}:{app_secret}:{using}".format(using=self.using, **self.conf)
         redis_key = AESCipher.crypt_md5(raw_key)
+        lock_key = "%s_AccessToken_Lock_%s" % (self.using, redis_key)
 
+        # Here is Distributed Lock
+        # 1: Self-implemented distributed lock for a single redis instance, redis.set is atomic,
+        #      but not blocking, so use `while` for loop, then must sleep
+        # 2: The redlock-py package is a distributed lock on multiple instances of redis，
+        #      after the lock is acquired, the lock is not blocking, you still need to use `while` for loop
         while int(time.time()) - timestamp < expire_time:
             cache_token = conn.hgetall(redis_key) or {}
             access_token = cache_token.get("access_token")
@@ -152,8 +158,6 @@ class ClientMixin(RequestApiBase):
                 self.logger.info("[%s] => From redis token: %s" % (self.__class__.__name__, cache_token))
                 return access_token
 
-            # redis.set is atomic, but not blocking, so use `while`, then must sleep
-            lock_key = "AccessTokenLock_%s" % redis_key
             if conn.set(lock_key, 1, ex=expire_time, nx=True):
                 token = self.get_access_token()
                 self.logger.info("[%s] => From api token: %s" % (self.__class__.__name__, token))

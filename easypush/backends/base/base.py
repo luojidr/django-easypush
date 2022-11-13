@@ -153,12 +153,14 @@ class ClientMixin(RequestApiBase):
                 return access_token
 
             # redis.set is atomic, but not blocking, so use `while`, then must sleep
-            if conn.set("AccessTokenLock_%s" % redis_key, 1, ex=expire_time, nx=True):
+            lock_key = "AccessTokenLock_%s" % redis_key
+            if conn.set(lock_key, 1, ex=expire_time, nx=True):
                 token = self.get_access_token()
                 self.logger.info("[%s] => From api token: %s" % (self.__class__.__name__, token))
 
                 conn.hmset(redis_key, token)
                 conn.expire(redis_key, self.TOKEN_EXPIRE_TIME - 10 * 60)
+                conn.expire(lock_key, 0)  # Delete distributed lock
                 return token["access_token"]
 
             time.sleep(.01)

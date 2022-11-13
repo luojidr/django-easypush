@@ -12,7 +12,6 @@ class QyMessage(RequestApiBase):
 
         self._client = client
         self._api_base_url = self._client.API_BASE_URL
-        self._access_token = self._client.access_token
 
     @property
     def corp_id(self):
@@ -31,22 +30,22 @@ class QyMessage(RequestApiBase):
             'created_at': '1667296036'
         }
         """
-        params = dict(access_token=self._access_token, type=media_type)
-
         fp = open(filename, "rb") if filename else media_file
         filename = filename or media_file.name
-        media_enum = self._client.MESSAGE_MEDIA_ENUM.get_media_enum(media_type)
 
-        if self._client.get_size(fp) > media_enum.max_size:
-            raise exceptions.ExceedContentMaxSizeError("Media[%s] exceed %s size" % (filename, media_enum.max_size))
+        try:
+            media_enum = self._client.MESSAGE_MEDIA_ENUM.get_media_enum(media_type)
 
-        upload_files = [("media", os.path.basename(filename), fp.read())]
-        fp.close()
+            if self._client.get_size(fp) > media_enum.max_size:
+                raise exceptions.ExceedContentMaxSizeError("Media[%s] exceed %s size" % (filename, media_enum.max_size))
 
-        return self._request(
-            method="POST", endpoint="media.upload",
-            params=params, upload_files=upload_files,
-        )
+            upload_files = [("media", os.path.basename(filename), fp.read())]
+            return self._request(
+                method="POST", endpoint="media.upload", upload_files=upload_files,
+                params=dict(access_token=self._client.access_token, type=media_type),
+            )
+        finally:
+            fp.close()
 
     def media_download(self, media_id):
         pass
@@ -78,7 +77,7 @@ class QyMessage(RequestApiBase):
 
         return self._request(
             method="POST", endpoint="message.send",
-            params=dict(access_token=self._access_token), data=new_msg_body,
+            params=dict(access_token=self._client.access_token), data=new_msg_body,
         )
 
     def get_send_progress(self, agent_id, task_id):
@@ -95,7 +94,7 @@ class QyMessage(RequestApiBase):
             'errmsg': 'ok'  # 对返回码的文本描述内容
             }
         """
-        params = dict(access_token=self._access_token)
+        params = dict(access_token=self._client.access_token)
         return self._request(
             method="POST", endpoint="message.recall",
             params=params, data=dict(msgid=msgid),

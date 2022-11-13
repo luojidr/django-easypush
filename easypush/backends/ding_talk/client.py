@@ -19,6 +19,7 @@ from easypush.utils.util import to_text
 
 class DingBase(ClientMixin):
     CLIENT_NAME = "ding_talk"
+    TOKEN_EXPIRE_TIME = 2 * 60 * 60
     MEDIA_EXPIRE_TIME = 10 * 365 * 24 * 60 * 60
 
     def __init__(self, msg_type=None, **kwargs):

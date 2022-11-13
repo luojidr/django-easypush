@@ -1,4 +1,5 @@
 import io
+import time
 import logging
 import os.path
 import datetime
@@ -6,10 +7,12 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.files.base import File
+from django_redis import get_redis_connection
 
 from easypush.utils.log import Logger
 from easypush.utils.settings import config
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
+from easypush.core.crypto import AESCipher
 from easypush.core.request.http_client import HttpFactory
 from easypush.core.request.multipart import MultiPartForm
 
@@ -79,7 +82,7 @@ class RequestApiBase:
             if self._log_path:
                 self._logger = self.log_cls(filename=self._log_path)
             else:
-                self._logger = logging.getLogger("easypush")
+                self._logger = logging.getLogger("django")
 
         return self._logger
 
@@ -90,10 +93,10 @@ class ClientMixin(RequestApiBase):
         self._kwargs = dict(**kwargs)
         self.using = self._kwargs.get("using", DEFAULT_EASYPUSH_ALIAS)
 
-        self._corp_id = corp_id or self.app_config["corp_id"]
-        self._agent_id = agent_id or self.app_config["agent_id"]
-        self._app_key = app_key or self.app_config["app_key"]
-        self._app_secret = app_secret or self.app_config["app_secret"]
+        self._corp_id = corp_id or self.conf["corp_id"]
+        self._agent_id = agent_id or self.conf["agent_id"]
+        self._app_key = app_key or self.conf["app_key"]
+        self._app_secret = app_secret or self.conf["app_secret"]
 
     @property
     def filepath(self):
@@ -132,7 +135,36 @@ class ClientMixin(RequestApiBase):
         raise NotImplementedError
 
     @property
-    def app_config(self):
+    def access_token(self):
+        conn = get_redis_connection()
+
+        expire_time = 10 * 60
+        timestamp = int(time.time())
+
+        raw_key = "{agent_id}:{corp_id}:{app_key}:{app_secret}:{using}".format(using=self.using, **self.conf)
+        redis_key = AESCipher.crypt_md5(raw_key)
+
+        while int(time.time()) - timestamp < expire_time:
+            cache_token = conn.hgetall(redis_key) or {}
+            access_token = cache_token.get("access_token")
+
+            if access_token is not None:
+                self.logger.info("[%s] => From redis token: %s" % (self.__class__.__name__, cache_token))
+                return access_token
+
+            # redis.set is atomic, but not blocking, so use `while`, then must sleep
+            if conn.set("AccessTokenLock_%s" % redis_key, 1, ex=expire_time, nx=True):
+                token = self.get_access_token()
+                self.logger.info("[%s] => From api token: %s" % (self.__class__.__name__, token))
+
+                conn.hmset(redis_key, token)
+                conn.expire(redis_key, self.TOKEN_EXPIRE_TIME - 10 * 60)
+                return token["access_token"]
+
+            time.sleep(.01)
+
+    @property
+    def conf(self):
         return dict(
             backend=config[self.using]["BACKEND"],
             corp_id=config[self.using]["CORP_ID"],

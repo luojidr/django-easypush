@@ -94,16 +94,11 @@ class AppMessageHandler(MessageBase):
             forms = self._get_module_with_registered("forms")
 
             fp = open(filename, "rb")
-            # print(fp.read())
-            # fp.seek(0, os.SEEK_END)
             size = os.path.getsize(filename)
-            # fp.seek(0)
-            # print(fp.read())
 
             files = MultiValueDict()
             files["media"] = InMemoryUploadedFile(
-                fp, field_name="media", name=filename,
-                content_type=None, size=size, charset=None
+                fp, field_name="media", name=filename, content_type=None, size=size, charset=None
             )
             media_data = dict(media_title=os.path.basename(filename), media_type=media_type, app=app_obj.id, **files)
 

@@ -12,6 +12,7 @@ from easypush.backends.base.body import MsgBodyBase
 
 class FeishuBase(ClientMixin):
     CLIENT_NAME = "feishu"
+    TOKEN_EXPIRE_TIME = 2 * 60 * 60
     MEDIA_EXPIRE_TIME = 1 * 24 * 60 * 60
     API_BASE_URL = "https://open.feishu.cn/open-apis/"
 
@@ -19,12 +20,11 @@ class FeishuBase(ClientMixin):
         super().__init__(**kwargs)
         self._msg_type = msg_type
 
-        self._token_mapping = {}
         self._token = Token(client=self, token_type=token_type, **kwargs)
         self._message = FeishuMessage(client=self)
 
     def get_access_token(self):
-        return self._token.access_token
+        return self._token.get_access_token()
 
 
 class FeishuClient(FeishuBase, FeishuMessageBodyParser):

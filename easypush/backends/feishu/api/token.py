@@ -6,6 +6,8 @@ from easypush.utils.constants import FeishuTokenTypeEnum as TokenEnum
 
 
 class FeishuAccessToken:
+    EXPIRE_TIME = 2 * 60 * 60
+
     def __init__(self, client, token_type=None, **kwargs):
         self._client = client
         self._app_id = client._app_key
@@ -18,13 +20,13 @@ class FeishuAccessToken:
         headers = {"Content-Type": "application/json; charset=utf-8"}
         self._top_request = partial(self._client._request, headers=headers)
 
-    @property
-    def token_type(self):
+    def get_token_type(self):
         return self._token_type
 
-    @token_type.setter
-    def token_type(self, val):
+    def set_token_type(self, val):
         self._token_type = val
+
+    token_type = property(get_token_type, set_token_type)
 
     @property
     def access_key(self):
@@ -73,7 +75,7 @@ class FeishuAccessToken:
         token = self._token_mapping.get(self.token_type, {})
 
         token_timestamp = token.get("timestamp", 0)
-        token_expires = token.get("expire", 2 * 60 * 60)
+        token_expires = token.get("expire", self.EXPIRE_TIME)
 
         if timestamp - token_timestamp > token_expires or token.get("errcode") != 0:
             token = self.get_access_token()

@@ -10,6 +10,7 @@ from easypush.utils.constants import QyWXMediaEnum
 
 class QyWeixinBase(ClientMixin):
     CLIENT_NAME = "qy_weixin"
+    TOKEN_EXPIRE_TIME = 2 * 60 * 60
     MEDIA_EXPIRE_TIME = 3 * 24 * 60 * 60
     API_BASE_URL = "https://qyapi.weixin.qq.com/cgi-bin/"
 
@@ -34,16 +35,16 @@ class QyWeixinBase(ClientMixin):
         return self._request(method="GET", endpoint="gettoken", params=params)
 
     @property
-    def access_token(self):
-        """ Could use redis reduce request token """
+    def token(self):
         timestamp = datetime.now().timestamp()
         token_timestamp = self._token_cache.get("timestamp", 0)
-        token_expires = self._token_cache.get("expires_in", 2 * 60 * 60)
+        token_expires = self._token_cache.get("expires_in", self.TOKEN_EXPIRE_TIME)
 
         if timestamp - token_timestamp > token_expires or self._token_cache.get("errcode") != 0:
-            self._token_cache = self.get_access_token()
-            self._token_cache["timestamp"] = timestamp
-            self.logger.info("[%s] access_token: %s" % (self.__class__.__name__, self._token_cache["access_token"]))
+            token = self.get_access_token()
+            token["timestamp"] = timestamp
+            self._token_cache = token
+            self.logger.info("[%s] access_token: %s" % (self.__class__.__name__, token["access_token"]))
 
         return self._token_cache["access_token"]
 

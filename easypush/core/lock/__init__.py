@@ -6,7 +6,6 @@ except ImportError:
 import time
 import string
 import random
-import traceback
 
 from django_redis import get_redis_connection
 

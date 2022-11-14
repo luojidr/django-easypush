@@ -23,10 +23,10 @@ class TaskRunningLockError(Exception):
     pass
 
 
-def run_task_with_lock(lock_key,
-                       task, task_args=(), task_kwargs=None,
-                       task_pre=None, task_pre_args=(), task_pre_kwargs=None,
-                       expire=10 * 60, delay=0.1):
+def atomic_task_with_lock(lock_key,
+                          task, task_args=(), task_kwargs=None,
+                          task_pre=None, task_pre_args=(), task_pre_kwargs=None,
+                          expire=10 * 60, delay=0.1):
     unlock_script = """
         if redis.call("get",KEYS[1]) == ARGV[1] then
             return redis.call("del",KEYS[1])
@@ -63,7 +63,7 @@ def run_task_with_lock(lock_key,
                 except Exception as e:
                     raise ReleaseLockError("Release lock error: {0}".format(e))
 
-                # Deprecated: The lock may not release itself
+                # Deprecated: The lock may not release by itself
                 # conn.expire(lock_key, 0)  # Delete lock to success or fail
 
         time.sleep(delay)  # Sleep 10 milliseconds

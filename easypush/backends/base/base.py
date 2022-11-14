@@ -12,7 +12,7 @@ from easypush.utils.log import Logger
 from easypush.utils.settings import config
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.core.crypto import AESCipher
-from easypush.core.lock import run_task_with_lock
+from easypush.core.lock import atomic_task_with_lock
 from easypush.core.request.http_client import HttpFactory
 from easypush.core.request.multipart import MultiPartForm
 
@@ -157,7 +157,7 @@ class ClientMixin(RequestApiBase):
         raw_key = "{agent_id}:{corp_id}:{app_key}:{app_secret}:{using}".format(using=self.using, **self.conf)
         redis_key = AESCipher.crypt_md5(raw_key)
 
-        return run_task_with_lock(
+        return atomic_task_with_lock(
             lock_key="%s_AccessToken_Lock_%s" % (self.using, redis_key),
             task=get_token, task_args=(redis_conn, redis_key, self),
             task_pre=get_cache_token, task_pre_args=(redis_conn, redis_key, self),

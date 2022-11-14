@@ -1,5 +1,4 @@
 import io
-import time
 import logging
 import os.path
 import datetime
@@ -13,6 +12,7 @@ from easypush.utils.log import Logger
 from easypush.utils.settings import config
 from easypush.utils.settings import DEFAULT_EASYPUSH_ALIAS
 from easypush.core.crypto import AESCipher
+from easypush.core.lock import atomic_task_with_lock
 from easypush.core.request.http_client import HttpFactory
 from easypush.core.request.multipart import MultiPartForm
 
@@ -136,38 +136,32 @@ class ClientMixin(RequestApiBase):
 
     @property
     def access_token(self):
-        conn = get_redis_connection()
-
-        expire_time = 10 * 60
-        timestamp = int(time.time())
-
-        raw_key = "{agent_id}:{corp_id}:{app_key}:{app_secret}:{using}".format(using=self.using, **self.conf)
-        redis_key = AESCipher.crypt_md5(raw_key)
-        lock_key = "%s_AccessToken_Lock_%s" % (self.using, redis_key)
-
-        # Here is Distributed Lock
-        # 1: Self-implemented distributed lock for a single redis instance, redis.set is atomic,
-        #      but not blocking, so use `while` for loop, then must sleep
-        # 2: The redlock-py package is a distributed lock on multiple instances of redis，
-        #      after the lock is acquired, the lock is not blocking, you still need to use `while` for loop
-        while int(time.time()) - timestamp < expire_time:
-            cache_token = conn.hgetall(redis_key) or {}
+        def get_cache_token(conn, key, ths):
+            cache_token = conn.hgetall(key) or {}
             access_token = cache_token.get("access_token")
 
             if access_token is not None:
-                self.logger.info("[%s] => From redis token: %s" % (self.__class__.__name__, cache_token))
+                ths.logger.info("[%s] => From redis token: %s" % (ths.__class__.__name__, cache_token))
                 return access_token
 
-            if conn.set(lock_key, 1, ex=expire_time, nx=True):
-                token = self.get_access_token()
-                self.logger.info("[%s] => From api token: %s" % (self.__class__.__name__, token))
+        def get_token(conn, key, ths):
+            token = ths.get_access_token()
+            ths.logger.info("[%s] => From api token ok: %s" % (ths.__class__.__name__, token))
 
-                conn.hmset(redis_key, token)
-                conn.expire(redis_key, self.TOKEN_EXPIRE_TIME - 10 * 60)
-                conn.expire(lock_key, 0)  # Delete distributed lock
-                return token["access_token"]
+            conn.hmset(key, token)
+            conn.expire(key, ths.TOKEN_EXPIRE_TIME - 10 * 60)
 
-            time.sleep(.01)
+            return token["access_token"]
+
+        redis_conn = get_redis_connection()
+        raw_key = "{agent_id}:{corp_id}:{app_key}:{app_secret}:{using}".format(using=self.using, **self.conf)
+        redis_key = AESCipher.crypt_md5(raw_key)
+
+        return atomic_task_with_lock(
+            lock_key="%s_AccessToken_Lock_%s" % (self.using, redis_key),
+            task=get_token, task_args=(redis_conn, redis_key, self),
+            task_pre=get_cache_token, task_pre_args=(redis_conn, redis_key, self),
+        )
 
     @property
     def conf(self):

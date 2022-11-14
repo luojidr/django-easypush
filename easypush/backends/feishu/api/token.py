@@ -69,21 +69,6 @@ class FeishuAccessToken:
 
         return self._top_request(method="POST", endpoint=token_enum.endpoint, data=data)
 
-    @property
-    def access_token(self):
-        timestamp = datetime.now().timestamp()
-        token = self._token_mapping.get(self.token_type, {})
-
-        token_timestamp = token.get("timestamp", 0)
-        token_expires = token.get("expire", self.EXPIRE_TIME)
-
-        if timestamp - token_timestamp > token_expires or token.get("errcode") != 0:
-            token = self.get_access_token()
-            token["timestamp"] = timestamp
-            self._token_mapping[self.token_type] = token
-
-        return token[self.access_key]
-
     def get_app_ticket(self):
         return self._top_request(
             method="POST",

@@ -13,8 +13,9 @@ from django.core.files.base import File
 
 from .parser import DingMessageBodyParser
 from easypush.backends.base.base import ClientMixin
-from easypush.utils.constants import DingTalkMediaEnum
 from easypush.utils.util import to_text
+from easypush.utils.constants import DingTalkMediaEnum
+from easypush.utils.decorators import token_expire_cache
 
 
 class DingBase(ClientMixin):
@@ -33,9 +34,12 @@ class DingBase(ClientMixin):
         )
         self._message = Message(client=self._client)
 
+    @token_expire_cache(name="ding_talk.token", timeout=TOKEN_EXPIRE_TIME)
     def get_access_token(self):
         """ 获取应用 access token """
-        return self._client.get_access_token()
+        result = self._client.get_access_token()
+        self.logger.info("[%s] token: %s" % (self.__class__.__name__, result))
+        return result
 
 
 class DingTalkClient(DingBase, DingMessageBodyParser):

@@ -6,6 +6,7 @@ from .parser import QyWXMessageBodyParser
 from easypush.backends.base.base import ClientMixin
 from easypush.backends.base.body import MsgBodyBase
 from easypush.utils.constants import QyWXMediaEnum
+from easypush.utils.decorators import token_expire_cache
 
 
 class QyWeixinBase(ClientMixin):
@@ -21,6 +22,7 @@ class QyWeixinBase(ClientMixin):
         self._token_cache = {}
         self._message = QyMessage(client=self)
 
+    @token_expire_cache(name="qy_weixin.token", timeout=TOKEN_EXPIRE_TIME)
     def get_access_token(self):
         """ 获取应用 access token
         Data:
@@ -32,21 +34,9 @@ class QyWeixinBase(ClientMixin):
             }
         """
         params = dict(corpid=self._corp_id, corpsecret=self._app_secret)
-        return self._request(method="GET", endpoint="gettoken", params=params)
-
-    @property
-    def token(self):
-        timestamp = datetime.now().timestamp()
-        token_timestamp = self._token_cache.get("timestamp", 0)
-        token_expires = self._token_cache.get("expires_in", self.TOKEN_EXPIRE_TIME)
-
-        if timestamp - token_timestamp > token_expires or self._token_cache.get("errcode") != 0:
-            token = self.get_access_token()
-            token["timestamp"] = timestamp
-            self._token_cache = token
-            self.logger.info("[%s] access_token: %s" % (self.__class__.__name__, token["access_token"]))
-
-        return self._token_cache["access_token"]
+        result = self._request(method="GET", endpoint="gettoken", params=params)
+        self.logger.info("[%s] token: %s" % (self.__class__.__name__, result))
+        return result
 
 
 class QyWeixinClient(QyWeixinBase, QyWXMessageBodyParser):

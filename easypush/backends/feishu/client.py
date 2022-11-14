@@ -8,6 +8,7 @@ from .parser import FeishuMessageBodyParser
 from .api.token import FeishuAccessToken as Token
 from easypush.backends.base.base import ClientMixin
 from easypush.backends.base.body import MsgBodyBase
+from easypush.utils.decorators import token_expire_cache
 
 
 class FeishuBase(ClientMixin):
@@ -23,8 +24,13 @@ class FeishuBase(ClientMixin):
         self._token = Token(client=self, token_type=token_type, **kwargs)
         self._message = FeishuMessage(client=self)
 
+    @token_expire_cache(name="feishu.token", timeout=TOKEN_EXPIRE_TIME)
     def get_access_token(self):
-        return self._token.get_access_token()
+        result = self._token.get_access_token()
+        result["access_token"] = result[self._token.access_key]
+
+        self.logger.info("[%s] token: %s" % (self.__class__.__name__, result))
+        return result
 
 
 class FeishuClient(FeishuBase, FeishuMessageBodyParser):

@@ -17,6 +17,7 @@ unlock_script = """
     end
 """
 redis_conn = get_redis_connection()
+# script_sha is str, Same as script_sha, same result every time
 script_sha = redis_conn.script_load(unlock_script)
 
 
@@ -65,11 +66,11 @@ def atomic_task_with_lock(lock_key,
             finally:
                 # Recommend to use, only release the lock you put on yourself
                 try:
-                    # You could use `eval` or `evalsha` cmd
-                    redis_conn.eval(unlock_script, 1, lock_key, uniq_val)
-                    # redis_conn.evalsha(script_sha, 1, lock_key, uniq_val)
+                    # You could use `eval` or `evalsha` cmd, but performance of `evalsha might be better
+                    # redis_conn.eval(unlock_script, 1, lock_key, uniq_val)
+                    redis_conn.evalsha(script_sha, 1, lock_key, uniq_val)
 
-                    # Also use register_script method
+                    # Also use register_script method,
                     # command = redis_conn.register_script(unlock_script)
                     # command(keys=[lock_key], args=[uniq_val])
                     pass

@@ -1,6 +1,37 @@
+import time
+import random
+import string
+from functools import partial
+from multiprocessing.dummy import Pool as ThreadPool
+
 from django.test import TestCase
 
 from easypush import pushes, easypush
+from easypush.core.lock import atomic_task_with_lock
+
+
+class RedisLockTestCase(TestCase):
+    def setUp(self) -> None:
+        self.count = 0
+        self.lock_key = ''.join(random.choice(string.ascii_letters) for _ in range(26))
+
+    def calculate(self, *args):
+        self.count += 1
+
+    def test_qps(self):
+        maxsize = 50000
+        pool = ThreadPool()
+        task_fun = partial(atomic_task_with_lock, self.lock_key, self.calculate, delay=0.001, expire=2)
+
+        start_time = time.time()
+        iterable = [(i,) for i in range(maxsize)]
+        pool.map(task_fun, iterable)
+
+        cost_time = time.time() - start_time
+        print("Cal ret: %s, maxsize:%s, cost:%s, qps:%.2f" % (self.count, maxsize, cost_time, maxsize / cost_time))
+
+        pool.close()
+        pool.join()
 
 
 class DingTalkTestCase(TestCase):

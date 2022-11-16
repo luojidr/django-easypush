@@ -35,11 +35,23 @@ class TaskRunningError(Exception):
 
 def atomic_task_with_lock(lock_key,
                           task, task_args=(), task_kwargs=None,
-                          task_pre=None, task_pre_args=(), task_pre_kwargs=None,
+                          task_before=None, task_before_args=(), task_before_kwargs=None,
                           expire=10 * 60, delay=0.1):
-
+    """ 分布式锁, 当任务需要唯一执行时可使用该方法
+    :param lock_key: str, 分布式锁 Key
+    :param task: callable, 执行的任务的可调用对象
+    :param task_args: tuple, 任务的位置参数
+    :param task_kwargs: dict, 任务的关键字参数
+    :param task_before: callable, 预处理任务的可调用对象, 若结果不为空，则跳过task直接返回
+    :param task_before_args: tuple, 预处理任务的位置参数
+    :param task_before_kwargs: dict, 预处理任务的关键字参数
+    :param expire: int, 锁和task最大过期时间(秒)
+    :param delay: int, 下一次获取锁的间隔时间(秒)
+    :return:
+    """
     global redis_conn, script_sha
 
+    expire = int(expire)
     timestamp = int(time.time())
     uniq_val = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(22)).encode()
 
@@ -49,13 +61,13 @@ def atomic_task_with_lock(lock_key,
     # 2: The redlock-py package is a distributed lock on multiple instances of redis，
     #      after the lock is acquired, it is not blocking, you still need to use `while` for checking
     while int(time.time()) - timestamp < expire:
-        if callable(task_pre):
-            pre_result = task_pre(*task_pre_args, **(task_pre_kwargs or {}))
+        if callable(task_before):
+            pre_result = task_before(*task_before_args, **(task_before_kwargs or {}))
             if pre_result is not None:
                 return pre_result
 
-        # If the `task_run` business fails to be handle within 10 minutes or exception, the lock does not work
-        if redis_conn.set(lock_key, uniq_val, px=int(expire * 1000), nx=True):
+        # Warning(Important): If the `task` spend time than the `expire`, the lock will not work
+        if redis_conn.set(lock_key, uniq_val, px=expire * 1000, nx=True):
             try:
                 if callable(task):
                     return task(*task_args, **(task_kwargs or {}))
@@ -80,6 +92,6 @@ def atomic_task_with_lock(lock_key,
                 # Deprecated: The lock may not release by itself
                 # redis_conn.delete(lock_key)  # Delete lock to success or fail [redis_conn.expire(lock_key, 0)] is same
 
-        time.sleep(delay)  # Sleep 10 milliseconds
+        time.sleep(delay)  # Sleep `delay` seconds
 
     raise AcquireLockError("Acquire lock is failed with single redis instance")

@@ -92,10 +92,11 @@ class IdGenerator(object):
         获取雪花算法 ID，重复率为: 0
         经多线程粗略测试计算， QPS: 155000 req/s, 155 req/ms, QPS 完全够用
         """
+        # 此处使用单例模式锁，虽然在当前进程服务不会产生uid重复，但是多进程服务可能重复，最好使用分布式锁
         with self.lock:
             timestamp = self._gen_timestamp()
 
-            # 时钟回拨
+            # 时钟回拨(造成新生成的ID比之前的小，因为41位的时间戳变小了)
             if timestamp < self.last_timestamp:
                 logging.error('clock is moving backwards. Rejecting requests until {}'.format(self.last_timestamp))
                 raise InvalidSystemClock

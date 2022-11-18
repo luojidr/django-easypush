@@ -17,6 +17,13 @@ unlock_script = """
         return 0
     end
 """
+delay_script = """
+    if redis.call("get",KEYS[1]) == ARGV[1] then
+        return redis.call("pexpire",KEYS[1],ARGV[2])
+    else
+        return 0
+    end
+"""
 redis_conn = get_redis_connection()
 # script_sha is str, Same as script_sha, same result every time
 script_sha = redis_conn.script_load(unlock_script)
@@ -38,11 +45,20 @@ class LockWatch:
     def __init__(self, key, value, expire):
         self.key = key
         self.value = str(value)
-        self.expire = expire
+        self.expire = int(expire * 1000)  # milliseconds
+
+    @classmethod
+    def delay_sha(cls):
+        delay_sha = getattr(cls, "_delay_sha", None)
+        if delay_sha:
+            return getattr(cls, "_delay_sha")
+
+        delay_sha = redis_conn.script_load(delay_script)
+        getattr(cls, "_delay_sha", delay_sha)
+        return delay_sha
 
     def watchdog(self, conn):
-        expire = self.expire
-        timestamp = time.time()
+        timestamp = time.time() * 1000  # milliseconds
 
         while True:
             cache_value = str(conn.get(self.key) or b"")
@@ -50,20 +66,23 @@ class LockWatch:
             if cache_value != self.value:
                 break
 
-            elapsed_time = int(time.time() - timestamp)
-            percentage = int(elapsed_time / expire) * 100
+            elapsed_time = int(time.time() * 1000 - timestamp)
+            percentage = int(elapsed_time / self.expire * 100)
+            # print("elapsed_time:%s, percentage:%s" % (elapsed_time, percentage))
 
             if percentage >= 70:
-                self.expire = expire + expire / 4
-                conn.set(self.key, self.value, px=int(self.expire * 1000))
+                delay_time = self.expire
+                ret = conn.evalsha(LockWatch.delay_sha(), 1, self.key, self.value, delay_time)
+                timestamp = time.time() * 1000
+                # print("ret:%s" % ret)
 
-            time.sleep(0.05)
+            time.sleep(0.1)
 
 
 def atomic_task_with_lock(lock_key,
                           task, task_args=(), task_kwargs=None,
                           task_before=None, task_before_args=(), task_before_kwargs=None,
-                          expire=10 * 60, delay=0.1, prolog_on=False):
+                          expire=10 * 60, delay=0.1, watchd_on=False):
     """ 分布式锁, 当任务需要唯一执行时可使用该方法
     :param lock_key: str, 分布式锁 Key
     :param task: callable, 执行的任务的可调用对象
@@ -74,7 +93,7 @@ def atomic_task_with_lock(lock_key,
     :param task_before_kwargs: dict, 预处理任务的关键字参数
     :param expire: int, 锁和task最大过期时间(秒)
     :param delay: int, 下一次获取锁的间隔时间(秒)
-    :param prolog_on: bool, 是否给锁续命，直至task结束
+    :param watchd_on: bool, 是否给锁续命，直至task结束
     :return:
     """
     global redis_conn, script_sha
@@ -95,11 +114,11 @@ def atomic_task_with_lock(lock_key,
 
         # Warning(Important): If the `task` spend time than the `expire`, the lock will not work,
         # so you must prolong Time To Live for the lock
-        if redis_conn.set(lock_key, uniq_val, px=int(watch.expire * 1000), nx=True):
+        if redis_conn.set(lock_key, uniq_val, px=watch.expire, nx=True):
             # print("calculate-%s：%s" % (threading.get_ident(), datetime.now()))
             try:
                 # 大量启动守护线程给lock_key续命，目前测试发现整体上会降低整个系统的效率
-                if prolog_on:
+                if watchd_on:
                     t = threading.Thread(target=watch.watchdog, args=(redis_conn,))
                     t.setDaemon(True)
                     t.start()

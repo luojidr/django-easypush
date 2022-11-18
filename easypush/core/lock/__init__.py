@@ -82,7 +82,7 @@ class LockWatch:
 def atomic_task_with_lock(lock_key,
                           task, task_args=(), task_kwargs=None,
                           task_before=None, task_before_args=(), task_before_kwargs=None,
-                          expire=10 * 60, delay=0.1, watchd_on=False):
+                          expire=10 * 60, delay=0.1, watch_on=False):
     """ 分布式锁, 当任务需要唯一执行时可使用该方法
     :param lock_key: str, 分布式锁 Key
     :param task: callable, 执行的任务的可调用对象
@@ -93,7 +93,7 @@ def atomic_task_with_lock(lock_key,
     :param task_before_kwargs: dict, 预处理任务的关键字参数
     :param expire: int, 锁和task最大过期时间(秒)
     :param delay: int, 下一次获取锁的间隔时间(秒)
-    :param watchd_on: bool, 是否给锁续命，直至task结束
+    :param watch_on: bool, 是否给锁续命，直至task结束
     :return:
     """
     global redis_conn, script_sha

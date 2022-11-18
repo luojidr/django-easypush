@@ -118,7 +118,7 @@ def atomic_task_with_lock(lock_key,
             # print("calculate-%s：%s" % (threading.get_ident(), datetime.now()))
             try:
                 # 大量启动守护线程给lock_key续命，目前测试发现整体上会降低整个系统的效率
-                if watchd_on:
+                if watch_on:
                     t = threading.Thread(target=watch.watchdog, args=(redis_conn,))
                     t.setDaemon(True)
                     t.start()

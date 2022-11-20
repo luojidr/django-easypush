@@ -17,13 +17,7 @@ unlock_script = """
         return 0
     end
 """
-delay_script = """
-    if redis.call("get",KEYS[1]) == ARGV[1] then
-        return redis.call("pexpire",KEYS[1],ARGV[2])
-    else
-        return 0
-    end
-"""
+
 redis_conn = get_redis_connection()
 # script_sha is str, Same as script_sha, same result every time
 script_sha = redis_conn.script_load(unlock_script)
@@ -42,39 +36,46 @@ class TaskRunningError(Exception):
 
 
 class LockWatch:
-    def __init__(self, key, value, expire):
+    delay_script = """
+        if redis.call("get",KEYS[1]) == ARGV[1] then
+            return redis.call("pexpire",KEYS[1],ARGV[2])
+        else
+            return 0
+        end
+    """
+    exit_script = """
+        if redis.call("get",KEYS[1]) == ARGV[1] then
+            return 0
+        else
+            return 1
+        end
+    """
+    exit_sha = redis_conn.script_load(exit_script)
+    delay_sha = redis_conn.script_load(delay_script)
+
+    def __init__(self, key, value, expire, conn=None):
         self.key = key
         self.value = str(value)
         self.expire = int(expire * 1000)  # milliseconds
+        self.conn = conn or get_redis_connection()
 
-    @classmethod
-    def delay_sha(cls):
-        delay_sha = getattr(cls, "_delay_sha", None)
-        if delay_sha:
-            return getattr(cls, "_delay_sha")
+    def _get_timestamp(self):
+        return time.time() * 1000
 
-        delay_sha = redis_conn.script_load(delay_script)
-        getattr(cls, "_delay_sha", delay_sha)
-        return delay_sha
-
-    def watchdog(self, conn):
-        timestamp = time.time() * 1000  # milliseconds
+    def watchdog(self):
+        timestamp = self._get_timestamp()  # milliseconds
 
         while True:
-            cache_value = str(conn.get(self.key) or b"")
-
-            if cache_value != self.value:
+            if self.conn.evalsha(LockWatch.exit_sha, 1, self.key, self.value):
                 break
 
-            elapsed_time = int(time.time() * 1000 - timestamp)
+            elapsed_time = int(self._get_timestamp() - timestamp)
             percentage = int(elapsed_time / self.expire * 100)
-            # print("elapsed_time:%s, percentage:%s" % (elapsed_time, percentage))
 
             if percentage >= 70:
                 delay_time = self.expire
-                ret = conn.evalsha(LockWatch.delay_sha(), 1, self.key, self.value, delay_time)
-                timestamp = time.time() * 1000
-                # print("ret:%s" % ret)
+                self.conn.evalsha(LockWatch.delay_sha, 1, self.key, self.value, delay_time)
+                timestamp = self._get_timestamp()
 
             time.sleep(0.1)
 
@@ -99,7 +100,7 @@ def atomic_task_with_lock(lock_key,
     global redis_conn, script_sha
 
     uniq_val = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(22))
-    watch = LockWatch(lock_key, uniq_val, expire)
+    watch = LockWatch(lock_key, uniq_val, expire, conn=redis_conn)
 
     # Here is Distributed Lock
     # 1: Self-implemented lock(distributed lock) for a single redis instance, redis.set is atomic,
@@ -117,10 +118,10 @@ def atomic_task_with_lock(lock_key,
         if redis_conn.set(lock_key, uniq_val, px=watch.expire, nx=True):
             # print("calculate-%s：%s" % (threading.get_ident(), datetime.now()))
             try:
-                # 大量启动守护线程给lock_key续命，目前测试发现整体上会降低整个系统的效率
+                # 大量启动守护线程给lock_key续命，目前测试发现整体上会稍微降低整个系统的效率
                 if watch_on:
-                    t = threading.Thread(target=watch.watchdog, args=(redis_conn,))
-                    t.setDaemon(True)
+                    t = threading.Thread(target=watch.watchdog)
+                    t.setDaemon(True)  # When the main thread terminates, the daemon thread automatically terminates
                     t.start()
 
                 if callable(task):

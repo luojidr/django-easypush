@@ -59,23 +59,24 @@ class LockWatch:
         self.expire = int(expire * 1000)  # milliseconds
         self.conn = conn or get_redis_connection()
 
-    def _get_timestamp(self):
+    @staticmethod
+    def get_timestamp():
         return time.time() * 1000
 
     def watchdog(self):
-        timestamp = self._get_timestamp()  # milliseconds
+        timestamp = self.get_timestamp()  # milliseconds
 
         while True:
             if self.conn.evalsha(LockWatch.exit_sha, 1, self.key, self.value):
                 break
 
-            elapsed_time = int(self._get_timestamp() - timestamp)
+            elapsed_time = int(self.get_timestamp() - timestamp)
             percentage = int(elapsed_time / self.expire * 100)
 
             if percentage >= 70:
                 delay_time = self.expire
                 self.conn.evalsha(LockWatch.delay_sha, 1, self.key, self.value, delay_time)
-                timestamp = self._get_timestamp()
+                timestamp = self.get_timestamp()
 
             time.sleep(0.1)
 
@@ -83,7 +84,7 @@ class LockWatch:
 def atomic_task_with_lock(lock_key,
                           task, task_args=(), task_kwargs=None,
                           task_before=None, task_before_args=(), task_before_kwargs=None,
-                          expire=10 * 60, delay=0.1, watch_on=False):
+                          lock_expire=10 * 60, delay=0.1, watch_on=False):
     """ 分布式锁, 当任务需要唯一执行时可使用该方法
     :param lock_key: str, 分布式锁 Key
     :param task: callable, 执行的任务的可调用对象
@@ -92,7 +93,7 @@ def atomic_task_with_lock(lock_key,
     :param task_before: callable, 预处理任务的可调用对象, 若结果不为空，则跳过task直接返回
     :param task_before_args: tuple, 预处理任务的位置参数
     :param task_before_kwargs: dict, 预处理任务的关键字参数
-    :param expire: int, 锁和task最大过期时间(秒)
+    :param lock_expire: int, 锁和task最大过期时间(秒)
     :param delay: int, 下一次获取锁的间隔时间(秒)
     :param watch_on: bool, 是否给锁续命，直至task结束
     :return:
@@ -100,7 +101,7 @@ def atomic_task_with_lock(lock_key,
     global redis_conn, script_sha
 
     uniq_val = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(22))
-    watch = LockWatch(lock_key, uniq_val, expire, conn=redis_conn)
+    watch = LockWatch(lock_key, uniq_val, lock_expire, conn=redis_conn)
 
     # Here is Distributed Lock
     # 1: Self-implemented lock(distributed lock) for a single redis instance, redis.set is atomic,

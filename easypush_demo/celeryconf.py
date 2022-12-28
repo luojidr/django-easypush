@@ -93,6 +93,7 @@ class CeleryConfig(BaseConfig, CeleryQueueRouterConfig):
             'task': 'easypush.tasks.task_cache_message.cache_message_fingerprints',
             'schedule': crontab(hour=1, minute=0),
             'args': (),
+            'kwargs': {"is_periodic": True},  # 定时任务消息提醒
         },
     }
 

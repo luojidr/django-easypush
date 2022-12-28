@@ -60,8 +60,9 @@
         Server response (410): Project pre-registration is no longer required or supported, upload your files instead.
 
     打包之后检查: python3 -m twine check dist/*   # 如果rst文件格式不对，无法上传Pypi
+        : Checking dist\django_xxxxx-1.1.0-py3-none-any.whl: PASSED
 
-    （7）：上传： twine upload dist/* 或者直接打包并上传: python3 setup.pybdist_wheel upload
+    （7）：上传：python3 -m twine upload dist/* 或者直接打包并上传: python3 setup.py bdist_wheel upload
 ![avatar](t_pkg/t_celery/image/DD801769-6105-4c6f-9680-91544B4F5900.png)
 
     （8）：上传前的注意事项：

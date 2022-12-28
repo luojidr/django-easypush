@@ -128,6 +128,18 @@ class AppMessageModel(BaseAbstractModel):
         return "Message<Id:%s %s %s>" % (self.id, self.msg_type, self.platform_type)
 
 
+class CeleryTaskResultAlertModel(BaseAbstractModel):
+    task_name = models.CharField(verbose_name="任务名", max_length=500, unique=True, blank=True)
+    app = models.ForeignKey(to=AppTokenPlatformModel, verbose_name="应用id", default=None, on_delete=models.DO_NOTHING)
+    msg_type = models.CharField(verbose_name="消息类型", max_length=50, choices=MSG_CHOICES, default="", blank=True)
+    msg_body = models.CharField(verbose_name="消息JSON数据", max_length=2000, default="", blank=True)
+    platform_type = models.CharField(verbose_name="平台类型", max_length=100, choices=PLATFORM_CHOICES, default="")
+    remark = models.CharField(verbose_name="说明", max_length=200, default="", blank=True)
+
+    class Meta:
+        db_table = "easypush_celery_task_result_alert_msg"
+
+
 class AppMsgPushRecordModel(BaseAbstractModel):
     """ Application pushed message log """
 

@@ -1,5 +1,6 @@
 import re
 import time
+import json
 import logging
 import inspect
 import numbers
@@ -19,6 +20,9 @@ from celery.utils.nodenames import anon_nodename
 from celery.utils.saferepr import saferepr
 from celery.utils.time import maybe_make_aware
 from celery.exceptions import BackendError, CeleryError
+
+from easypush import easypush
+from easypush.models import CeleryTaskResultAlertModel
 
 
 __all__ = ["ContextTask", "Amqp", "get_celery_app"]
@@ -53,6 +57,21 @@ def get_celery_app():
         raise CeleryError("Celery instance is empty, recommended set `EASYPUSH_CELERY_APP`")
 
     return celery_app
+
+
+def _send_periodic_task_result(task_name, task_result=None, is_periodic=False, **kwargs):
+    beat_schedule = {}
+
+    # 最好有一个后台任务消息提醒的表，比如
+    if is_periodic:
+        alert_obj = CeleryTaskResultAlertModel.objects.filter(task_name=task_name).first()
+        log_args = (task_name, alert_obj, task_result)
+        task_logger.info("定时任务结果提醒 => Success task_name: %s, alert_obj:%s, task_result:%s", *log_args)
+
+        if alert_obj:
+            msgtype = alert_obj.msg_type
+            body_kwargs = json.loads(alert_obj.msg_body)
+            easypush.async_send(msgtype, body_kwargs=body_kwargs, async_mode=True)
 
 
 class Amqp(AMQP):
@@ -282,6 +301,7 @@ class ContextBaseTask(Task):
         log_kwargs.update(log_msg="End", costTime=time.time() - start)
         self.log_info(current_running_fun=inspect.stack()[0][3], log_kwargs=log_kwargs)
 
+        _send_periodic_task_result(self.name, task_result=result, **kwargs)
         return result
 
     def _check_task_retry(self):

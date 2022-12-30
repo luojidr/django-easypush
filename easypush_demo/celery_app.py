@@ -16,6 +16,7 @@ __all__ = ["app", "celery_app"]
 # This statement must always appear before the app instance is created, which is what we do next:
 logging.warning("Celery use `DJANGO_SETTINGS_MODULE` config: %s" % os.getenv("DJANGO_SETTINGS_MODULE"))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'easypush_demo.settings')
+# os.environ.setdefault('FORKED_BY_MULTIPROCESSING', '1')
 
 app = Celery(settings.APP_NAME + '_celery', task_cls=ContextTask)
 app.set_current()

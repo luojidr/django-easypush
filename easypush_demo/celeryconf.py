@@ -43,14 +43,18 @@ class BaseConfig(object):
     CELERY_RESULT_SERIALIZER = "json"
 
     # django-celery-results
-    # # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # https://docs.celeryproject.org/en/latest/django/first-steps-with-django.html
-    # CELERY_RESULT_BACKEND = 'django-db'
+    CELERY_RESULT_BACKEND = 'django-db'
     # CELERY_RESULT_BACKEND = 'redis://:Fosun!123456@127.0.0.1:6399/0'
     CELERY_CACHE_BACKEND = 'django-cache'
     CELERY_TASK_TO_BACKEND = "task_to_backend"
 
     # 调度器
+    # django-celery-beat
+    # --------------------------------------------------------------------------
+    # https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html#using-custom-scheduler-classes
+    # https://django-celery-beat.readthedocs.io/en/latest/
     CELERYBEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
     # CELERY_TRACK_STARTED = True
@@ -72,11 +76,21 @@ class CeleryQueueRouterConfig(object):
             exchange=Exchange("send_message_by_mq_exc"),
             routing_key="send_message_by_mq_rk",
         ),
+
+        Queue(
+            name="concurrency_orm_conn_q",
+            exchange=Exchange("concurrency_orm_conn_exc"),
+            routing_key="concurrency_orm_conn_rk",
+        ),
     )
 
     CELERY_ROUTES = {
         "easypush.tasks.task_send_message.send_message_by_mq": {
             "queue": "send_message_by_mq_q", "routing_key": "send_message_by_mq_rk"
+        },
+
+        "easypush.tasks.task_concurrency_conn.concurrency_orm_conn": {
+            "queue": "concurrency_orm_conn_q", "routing_key": "concurrency_orm_conn_rk"
         },
     }
 

@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'django_extensions',
+    'django_celery_results',
+    'django_celery_beat',
     'database_pool',
 
     'easypush',

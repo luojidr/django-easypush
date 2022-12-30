@@ -10,4 +10,9 @@ python-dotenv==0.21.0
 pyyaml==6.0
 mysqlclient==2.1.1
 pycryptodome==3.15.0
-celery==5.2.7
+celery==5.2.3
+# celery>=5.2.3,<6.0
+django-celery-results==2.4.0
+django-celery-beat==2.4.0
+eventlet==0.33.2
+gevent==22.10.2

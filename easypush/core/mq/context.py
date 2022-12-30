@@ -22,7 +22,6 @@ from celery.utils.time import maybe_make_aware
 from celery.exceptions import BackendError, CeleryError
 
 from easypush import easypush
-from easypush.models import CeleryTaskResultAlertModel
 
 
 __all__ = ["ContextTask", "Amqp", "get_celery_app"]
@@ -59,7 +58,9 @@ def get_celery_app():
     return celery_app
 
 
-def _send_periodic_task_result(task_name, task_result=None, is_periodic=False, **kwargs):
+def _send_periodic_task_alert(task_name, task_result=None, is_periodic=False, **kwargs):
+    from easypush.models import CeleryTaskResultAlertModel
+
     beat_schedule = {}
 
     # 最好有一个后台任务消息提醒的表，比如
@@ -301,7 +302,7 @@ class ContextBaseTask(Task):
         log_kwargs.update(log_msg="End", costTime=time.time() - start)
         self.log_info(current_running_fun=inspect.stack()[0][3], log_kwargs=log_kwargs)
 
-        _send_periodic_task_result(self.name, task_result=result, **kwargs)
+        # _send_periodic_task_alert(self.name, task_result=result, **kwargs)
         return result
 
     def _check_task_retry(self):

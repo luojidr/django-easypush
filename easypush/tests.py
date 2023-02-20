@@ -7,7 +7,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from django.test import TestCase
 
 from easypush import pushes, easypush
-from easypush.core.lock import atomic_task_with_lock
+from easypush.core.locker.lock import DistributedLock
 
 
 class RedisLockTestCase(TestCase):
@@ -21,7 +21,8 @@ class RedisLockTestCase(TestCase):
     def test_qps(self):
         maxsize = 50000
         pool = ThreadPool()
-        task_fun = partial(atomic_task_with_lock, self.lock_key, self.calculate, delay=0.001, expire=2)
+        atomic_task = DistributedLock(self.lock_key, self.calculate, interval_waits=0.001, expire=2)
+        task_fun = atomic_task.lock
 
         start_time = time.time()
         iterable = [(i,) for i in range(maxsize)]

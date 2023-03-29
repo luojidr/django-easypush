@@ -7,7 +7,7 @@ Push messages with different backends for the Django framework.
 
 |          |               |   
 | ---------|:--------------| 
-| Version  |1.1.2           | 
+| Version  |1.1.3           | 
 | Web      |               |  
 | Download |<http://pypi.python.org/pypi/django-easypush>  |  
 | Source   |<https://github.com/luojidr/django-easypush>   | 
@@ -53,6 +53,29 @@ EASYPUSH = {
 }
 EASYPUSH_CELERY_APP = "easypush_demo.celery_app:celery_app"  # auto to send message by async
 ```
+``` {.python}
+    from easypush import easypush
+
+    easypush.async_send(
+        msgtype='oa',
+        body_kwargs=dict(
+            title="Monitor for tasks",
+            media_id='@lADPDetfc4cWS5HNAZDNAlg',
+            content="Push messages with different backends for the Django framework. Monitor test for dingding, qy_weixin, SMS, feishu or mail.",
+            message_url='https://github.com/luojidr/django-easypush',
+            pc_message_url='https://github.com/luojidr/django-easypush',
+            forms=[
+                dict(key="Author: ", value="luojidr"),
+                dict(key="Type:    ", value="Dingding, SMS, Mail, QyWeixin, Feishu"),
+                dict(key="Github: ", value="https://github.com/luojidr/django-easypush"),
+            ],
+    ),
+    userid_list=['manager8174']
+    )
+```
+Demo like:  
+
+<img src="https://upload-images.jianshu.io/upload_images/6901229-882ad7fa62916daa.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="45%" height="70%">  
 
 ### Downloading and installing from source
 
